@@ -14,12 +14,20 @@ java {
 }
 
 repositories {
+	def gprUser = findProperty('gpr.user') ?: System.getenv('GPR_USER')
+	def gprToken = findProperty('gpr.token') ?: System.getenv('GPR_TOKEN')
+	if (!gprUser || !gprToken) {
+		throw new GradleException("GitHub Packages 자격증명 필요: gpr.user/GPR_USER 와 gpr.token/GPR_TOKEN을 ~/.gradle/gradle.properties 또는 환경변수로 설정하세요.")
+	}
 	mavenCentral()
 	maven {
 		url = uri("https://maven.pkg.github.com/trusta-market/common")
+		content {
+			includeGroup 'com.trustamarket'
+		}
 		credentials {
-			username = findProperty('gpr.user') ?: System.getenv('GPR_USER')
-			password = findProperty('gpr.token') ?: System.getenv('GPR_TOKEN')
+			username = gprUser
+			password = gprToken
 		}
 	}
 }
