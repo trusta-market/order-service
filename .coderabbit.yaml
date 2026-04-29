@@ -143,12 +143,13 @@ reviews:
         - /internal/api/* 경로 컨트롤러는 별도 패키지로 분리하고 외부 노출 방지
 
         [12] Exception Handling
-        - 모든 도메인 예외는 common 모듈의 ErrorCodeSpec 인터페이스 기반 enum 사용
-          (예: OrderErrorCode)
-        - Order 도메인은 OrderException 단일 클래스 사용 권장
+        - 도메인 예외는 common 모듈의 CustomException 또는 ErrorCodeSpec 인터페이스를 활용해야 한다
+        - 비즈니스별 도메인 예외 클래스 분리 허용 — 단, 모두 도메인 base exception을 상속해야 함
+          (예: OrderException(abstract base) → OrderNotFoundException, InvalidStatusTransitionException, SelfPurchaseException)
+        - 도메인 base exception은 abstract로 두고 각 비즈니스 케이스마다 구체 클래스로 정의
         - IllegalArgumentException, IllegalStateException 등 표준 예외를 도메인 로직에서 직접 사용 시 지적
-        - 에러 메시지는 ErrorCode에서 관리하며, Exception에서 별도 문자열 정의 금지
-          (예: throw new OrderException(OrderErrorCode.INVALID_STATUS))
+        - 예외 메시지는 도메인 예외 클래스 생성자 또는 ErrorCodeSpec에서 관리, 호출부에서 임의 문자열 메시지 사용 금지
+        - 에러 코드(HTTP status, type URI 등)는 common의 ErrorCodeSpec 인터페이스를 통해 일관성 유지
 
         [13] Logging & Security
         - 민감 정보 로그 출력 차단 (사용자 ID, 카드번호, PG 토큰, 결제 키 등)
