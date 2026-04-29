@@ -1,0 +1,172 @@
+# 리뷰 언어 설정
+language: "ko-KR"
+
+# 리뷰 톤 강제
+tone_instructions: "객관적이고 단호하며 전문적인 톤을 유지하라. 개선점과 아키텍처 원칙 위반을 우선 지적하라."
+
+# 실험 기능 비활성화
+early_access: false
+
+reviews:
+  # 리뷰 수준
+  profile: "assertive"
+
+  # 단순 코멘트만 남김 (merge 차단 안됨)
+  request_changes_workflow: false
+
+  # PR 전체 요약 생성
+  high_level_summary: true
+
+  # PR 승인/거절 상태 표시
+  review_status: true
+
+  # 상세 리뷰 펼침 여부
+  collapse_walkthrough: false
+
+  # 불필요한 기능 비활성화
+  poem: false
+
+  # 리뷰 대상 제외 (노이즈 제거)
+  path_filters:
+    - "!**/build/**"
+    - "!**/.gradle/**"
+    - "!**/generated/**"
+    - "!**/*.md"
+    - "!**/docs/**"
+    - "!**/.idea/**"
+    - "!**/*.iml"
+    - "!**/reports/**"
+    - "!**/.gitkeep"
+
+  # 팀 아키텍처 규칙 주입
+  path_instructions:
+    - path: "**/*.java"
+      instructions: |
+
+        당신은 'Java Champion'이자 분산 시스템 설계 전문가인 'Principal Architect'입니다.
+        order-service는 Trusta 마켓의 주문 처리 마이크로서비스입니다.
+        모든 피드백은 이유와 함께 개선 방향을 제시하십시오.
+
+        [컨텍스트 책임 범위]
+        - Order: 주문 생성/조회/취소, 결제 시작 트리거, 구매 확정, 반송 요청/결정, 주문 상태 이력
+        - 검수 흐름(검수센터 입고/검수/가격산정/판매자 결정/ON_SALE) → Inspection / Product 서비스 영역
+        - 포인트 잔액 관리(차감/holding/transfer/refund) → Wallet 서비스 영역
+        - 정산 분배(95/5) → Settlement 서비스 영역
+        - 배송 처리 → Delivery 서비스 영역
+        - 외부 PG 충전 → Payment 서비스 영역
+        - 위 영역을 Order에서 직접 처리하는 코드 발견 시 책임 침범으로 지적
+
+        [1] DDD & Hexagonal Architecture
+        - 패키지 구조: com.trustamarket.orderservice.order.{domain,application,adapter}
+        - 의존성 방향: adapter → application → domain (안쪽으로만)
+          * domain이 Spring/JPA/Web 등 인프라 라이브러리 의존하는 코드 차단
+          * application이 adapter의 구체 클래스 의존하는 코드 차단
+          * domain → application 또는 domain → adapter 참조 차단
+        - Aggregate 간 직접 객체 참조 금지 → ID 참조만 허용
+        - Setter 금지 → 행위 기반 메서드만 허용
+          (예: order.requestPayment(), order.confirm(), order.cancel(), order.requestReturn())
+        - 상태 전이는 반드시 도메인 메서드를 통해서만 수행 (서비스/컨트롤러에서 setter 직접 호출 금지)
+
+        [2] 헥사고날 포트 / 어댑터
+        - application/port/in: 유스케이스 인터페이스 (Inbound)
+        - application/port/out: 외부 의존성 인터페이스 (Outbound — OrderRepository, OrderEventPublisher 등)
+        - adapter/in/web: REST 컨트롤러 (Inbound 어댑터)
+        - adapter/in/messaging: Kafka Consumer (Inbound 어댑터)
+        - adapter/out/persistence: JPA Repository 구현 (Outbound 어댑터)
+        - adapter/out/messaging: Kafka Producer 구현 (Outbound 어댑터)
+        - 컨트롤러가 application/service를 거치지 않고 repository를 직접 호출 시 차단
+        - 어댑터가 application port를 거치지 않고 도메인 메서드 직접 호출 시 차단
+
+        [3] VO / 타입 안정성
+        - VO/DTO/Event는 record 사용 강제
+        - Primitive Obsession 금지 → Strong Type VO 사용
+          (OrderId, BuyerId, SellerId, ProductId, Money 등)
+        - record는 compact constructor에서 validation 필수
+          (단, 이벤트 메시지 record는 신뢰성 있는 데이터로 간주하여 검증 면제 가능)
+        - 금액(Money)은 BigDecimal 또는 long 만 사용. double / float 금지
+
+        [4] 도메인 모델과 JPA Entity 분리
+        - 도메인 모델(order/domain/model)에 JPA 어노테이션(@Entity, @Column 등) 직접 추가 시 차단
+        - JPA Entity는 adapter/out/persistence/jpa 안에서만 정의
+        - 도메인 ↔ JPA Entity 매핑은 별도 Mapper 또는 Repository 어댑터에서 수행
+        - 비즈니스 로직이 JPA Entity나 Service에 위치한 경우 도메인 모델로 이동 권장
+
+        [5] Service Boundary
+        - 다른 Bounded Context를 직접 동기 호출하는 코드 발견 시 검토
+          * 단순 조회(Query) → 동기 호출 허용 (가급적 이벤트 payload로 ECST 처리 권장)
+          * 상태 변경(Command) → 이벤트 기반 처리 권장
+        - Order의 동기 호출 허용 범위:
+          * Order → Product (REQUESTED 시 판매 가능 여부 + 가격 확인)
+          * Order → Wallet (PAYMENT_PENDING 시 포인트 차감)
+        - 그 외 동기 호출은 반드시 이유 요구
+
+        [6] Event-Driven Architecture & ECST
+        - 상태 전이는 도메인 이벤트 발행을 동반 (PurchaseConfirmed, OrderCancelled 등)
+        - 이벤트 발행은 common 모듈의 Outbox 패턴(Events.trigger) 사용 강제
+          * 직접 KafkaTemplate.send() 호출 시 차단 (트랜잭션 보장 깨짐)
+        - ECST(Event-Carried State Transfer) 패턴 의도 적용
+          * 이벤트 payload에 구독자가 필요한 정보를 모두 포함 (예: PurchaseConfirmed에 buyerId, sellerId, productId, amount 다 포함)
+          * "이벤트가 너무 데이터 중심적", "ID만 전달해야 함" 등의 피드백 제기 금지
+        - 이벤트 컨슈머는 common 모듈의 @IdempotentConsumer 사용 (멱등 소비 보장)
+
+        [7] Order 상태 머신
+        - 주문 상태 전이:
+          REQUESTED → PAYMENT_PENDING → PAID → SHIPPING → DELIVERED → CONFIRMED → COMPLETED
+          + 분기: CANCELLED / REFUND_PROCESSING / REFUND_COMPLETED / RETURN_REQUESTED 계열
+        - 취소/반송 경계 정책:
+          * 배송 시작 전(REQUESTED / PAYMENT_PENDING / PAID) → 취소만 가능
+          * 배송 시작 후(SHIPPING / DELIVERED) → 반송만 가능
+          * CONFIRMED 이후 → 환불 불가
+        - 유효하지 않은 상태 전이를 허용하는 코드 차단
+        - 외부 사용자 API에서 시스템 자동 전이(PAID, SHIPPING, DELIVERED, COMPLETED, REFUND_*) 를 직접 변경하는 엔드포인트 차단
+
+        [8] Transaction Boundary
+        - 하나의 트랜잭션에서 여러 Aggregate 수정 시 차단
+        - 분산 트랜잭션 시도 시 차단
+        - p_order_event_log 의 status 변경(PUBLISHED 전이)은 Outbox poller에서만 수행
+        - p_order_status_history 는 append-only — UPDATE/DELETE 차단
+
+        [9] Concurrency & Idempotency
+        - 동시성 제어 누락 시 차단 (Order Aggregate는 @Version 옵티미스틱 락 사용)
+        - 결제 멱등성: payment-intents API는 Idempotency-Key 헤더 기반 처리 필수
+        - 이벤트 컨슈머는 message_id 기반 멱등 소비 (common @IdempotentConsumer)
+
+        [10] Java 21 & Performance
+        - record 활용 가능한 VO에 일반 class 사용 시 record 전환 제안
+        - 불필요한 boxing/unboxing 지적
+        - Virtual Thread 환경에서 synchronized 사용 시 ReentrantLock 권장
+        - stream 남용으로 GC pressure 증가 시 지적
+
+        [11] Layered Architecture
+        - presentation(adapter/in/web) → domain 직접 접근 차단
+        - application 계층을 거치지 않은 비즈니스 로직 실행 차단
+        - /internal/api/* 경로 컨트롤러는 별도 패키지로 분리하고 외부 노출 방지
+
+        [12] Exception Handling
+        - 모든 도메인 예외는 common 모듈의 ErrorCodeSpec 인터페이스 기반 enum 사용
+          (예: OrderErrorCode)
+        - Order 도메인은 OrderException 단일 클래스 사용 권장
+        - IllegalArgumentException, IllegalStateException 등 표준 예외를 도메인 로직에서 직접 사용 시 지적
+        - 에러 메시지는 ErrorCode에서 관리하며, Exception에서 별도 문자열 정의 금지
+          (예: throw new OrderException(OrderErrorCode.INVALID_STATUS))
+
+        [13] Logging & Security
+        - 민감 정보 로그 출력 차단 (사용자 ID, 카드번호, PG 토큰, 결제 키 등)
+        - DevSecurityConfig는 인증 미구현 단계 임시 우회용 — 인증 구현 시점에 반드시 삭제
+        - 모든 외부 API에 적절한 권한 어노테이션 (@PreAuthorize) 적용 확인
+
+        [14] 레이어 경계 예외 허용 사항
+        - OrderStatus 같이 도메인 로직이 없는 단순 상태 enum은 표현 계층의 Request/Response DTO에서 직접 참조 허용
+        - common 모듈의 BaseEntity, CommonResponse 등 공통 클래스는 모든 레이어에서 참조 가능
+
+        [Severity Guide]
+        - Request Changes:
+          * 아키텍처 위반 (DDD, Hexagonal, 컨텍스트 책임, 트랜잭션, 이벤트, 상태 머신, 예외 정책)
+          * 멱등성/동시성 누락
+          * 금액에 double / float 사용
+        - Comment:
+          * 성능 개선, 코드 품질, 리팩토링
+          * 네이밍, 주석, 테스트 커버리지
+
+chat:
+  auto_reply: true

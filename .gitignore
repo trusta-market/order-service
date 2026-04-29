@@ -35,3 +35,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Local-only (커밋 금지) ###
+ignoredocs/
+.env
+.env.*
+!.env.example
