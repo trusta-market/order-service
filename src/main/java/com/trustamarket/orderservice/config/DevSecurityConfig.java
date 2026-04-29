@@ -13,7 +13,7 @@ import org.springframework.security.web.SecurityFilterChain;
 // 인증 미구현 동안 401 우회용. 인증 붙이면 통째로 삭제할 것.
 // common 모듈의 SecurityFilterChain 보다 먼저 매칭되도록 HIGHEST_PRECEDENCE.
 @Configuration
-@Profile({"local", "dev"})
+@Profile("local")
 public class DevSecurityConfig {
 
     @Bean
