@@ -21,6 +21,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -149,6 +150,31 @@ class OrderJpaRepositoryAdapterTest {
 
         assertThatThrownBy(() -> adapter.findByIdOrThrow(OrderId.of(id)))
                 .isInstanceOf(RestoreStateMismatchException.class);
+    }
+
+    @Test
+    @DisplayName("동시 수정 — stale version으로 save 시 OptimisticLockingFailureException")
+    void optimisticLockConflict() {
+        Order saved = adapter.save(freshOrder());
+        em.flush();
+        em.clear();
+
+        // 같은 행을 두 번 fetch — 둘 다 version=0
+        Order one = adapter.findByIdOrThrow(saved.getId());
+        Order two = adapter.findByIdOrThrow(saved.getId());
+
+        // one 먼저 commit → DB의 version 0 → 1
+        one.requestPayment();
+        adapter.save(one);
+        em.flush();
+        em.clear();
+
+        // two는 stale version=0 상태로 commit 시도 → DB version=1과 불일치 → 예외
+        two.requestPayment();
+        assertThatThrownBy(() -> {
+            adapter.save(two);
+            em.flush();
+        }).isInstanceOf(OptimisticLockingFailureException.class);
     }
 
     private static Order freshOrder() {
