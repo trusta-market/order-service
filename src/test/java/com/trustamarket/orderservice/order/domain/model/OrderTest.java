@@ -6,6 +6,7 @@ import com.trustamarket.orderservice.order.domain.exception.InvalidMoneyExceptio
 import com.trustamarket.orderservice.order.domain.exception.InvalidReasonException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidStatusTransitionException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidTimestampException;
+import com.trustamarket.orderservice.order.domain.exception.RestoreStateMismatchException;
 import com.trustamarket.orderservice.order.domain.exception.SelfPurchaseException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -393,6 +394,93 @@ class OrderTest {
                     .version(0)
                     .build())
                     .isInstanceOf(SelfPurchaseException.class);
+        }
+
+        // 상태별 메타데이터 불변식 검증 (DB 변조 감지) — 도메인 행위 메서드를 우회하는 유일한 경로
+
+        private static Order.OrderBuilder baseBuilder(OrderStatus status) {
+            return Order.restoreBuilder()
+                    .id(OrderId.generate())
+                    .buyer(buyer())
+                    .seller(seller())
+                    .product(product())
+                    .type(OrderType.LOW)
+                    .status(status)
+                    .shippingFee(SHIPPING)
+                    .totalAmount(PRICE.plus(SHIPPING))
+                    .version(0);
+        }
+
+        @Test
+        @DisplayName("CONFIRMED인데 confirmedAt == null이면 RestoreStateMismatch")
+        void confirmedWithoutConfirmedAt() {
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.CONFIRMED).build())
+                    .isInstanceOf(RestoreStateMismatchException.class);
+        }
+
+        @Test
+        @DisplayName("SETTLEMENT_PROCESSING/COMPLETED도 confirmedAt 필수")
+        void settlementCompletedWithoutConfirmedAt() {
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.SETTLEMENT_PROCESSING).build())
+                    .isInstanceOf(RestoreStateMismatchException.class);
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.COMPLETED).build())
+                    .isInstanceOf(RestoreStateMismatchException.class);
+        }
+
+        @Test
+        @DisplayName("CANCELLED/REFUND_PROCESSING/REFUND_COMPLETED는 cancelReason 필수")
+        void cancelledWithoutCancelReason() {
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.CANCELLED).build())
+                    .isInstanceOf(RestoreStateMismatchException.class);
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.REFUND_PROCESSING).build())
+                    .isInstanceOf(RestoreStateMismatchException.class);
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.REFUND_COMPLETED).build())
+                    .isInstanceOf(RestoreStateMismatchException.class);
+        }
+
+        @Test
+        @DisplayName("RETURN_REQUESTED/APPROVED/REJECTED는 returnReason 필수")
+        void returnWithoutReturnReason() {
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.RETURN_REQUESTED).build())
+                    .isInstanceOf(RestoreStateMismatchException.class);
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.RETURN_APPROVED).build())
+                    .isInstanceOf(RestoreStateMismatchException.class);
+        }
+
+        @Test
+        @DisplayName("RETURN_REJECTED는 rejectReason 추가 필수")
+        void rejectedWithoutRejectReason() {
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.RETURN_REJECTED)
+                    .returnReason(Reason.of("불량"))
+                    .build())
+                    .isInstanceOf(RestoreStateMismatchException.class);
+        }
+
+        @Test
+        @DisplayName("deletedAt만 채워지고 deletedBy가 null이면 RestoreStateMismatch")
+        void halfDeletedAt() {
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.REQUESTED)
+                    .deletedAt(Instant.parse("2026-04-30T12:00:00Z"))
+                    .build())
+                    .isInstanceOf(RestoreStateMismatchException.class);
+        }
+
+        @Test
+        @DisplayName("deletedBy만 채워지고 deletedAt이 null이면 RestoreStateMismatch")
+        void halfDeletedBy() {
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.REQUESTED)
+                    .deletedBy(UUID.randomUUID())
+                    .build())
+                    .isInstanceOf(RestoreStateMismatchException.class);
+        }
+
+        @Test
+        @DisplayName("CONFIRMED + confirmedAt 정상 조합은 통과")
+        void confirmedWithConfirmedAt() {
+            Order order = baseBuilder(OrderStatus.CONFIRMED)
+                    .confirmedAt(Instant.parse("2026-04-30T12:00:00Z"))
+                    .build();
+            assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         }
     }
 }
