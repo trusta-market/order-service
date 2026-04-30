@@ -79,8 +79,11 @@ reviews:
 
         [3] VO / 타입 안정성
         - VO/DTO/Event는 record 사용 강제
-        - Primitive Obsession 금지 → Strong Type VO 사용
-          (OrderId, BuyerId, SellerId, ProductId, Money 등)
+        - Primitive Obsession 금지 → Strong Type VO 사용 (OrderId, Money 등)
+        - cross-domain 식별자(buyerId/sellerId/productId 등)는 다음 중 하나로 처리 (사용 맥락에 따라 선택):
+          * snapshot VO에 포함 (예: Buyer(UUID id, String name))
+          * 강한 타입 분리 (예: BuyerId 별도 VO)
+          → snapshot VO 외부에서 식별자를 단독으로 다루는 유스케이스가 있으면 강한 타입 권장
         - record는 compact constructor에서 validation 필수
           (단, 이벤트 메시지 record는 신뢰성 있는 데이터로 간주하여 검증 면제 가능)
         - 금액(Money)은 BigDecimal 또는 long 만 사용. double / float 금지
@@ -143,12 +146,16 @@ reviews:
         - /internal/api/* 경로 컨트롤러는 별도 패키지로 분리하고 외부 노출 방지
 
         [12] Exception Handling
-        - 모든 도메인 예외는 common 모듈의 ErrorCodeSpec 인터페이스 기반 enum 사용
-          (예: OrderErrorCode)
-        - Order 도메인은 OrderException 단일 클래스 사용 권장
-        - IllegalArgumentException, IllegalStateException 등 표준 예외를 도메인 로직에서 직접 사용 시 지적
-        - 에러 메시지는 ErrorCode에서 관리하며, Exception에서 별도 문자열 정의 금지
-          (예: throw new OrderException(OrderErrorCode.INVALID_STATUS))
+        - 도메인 예외는 common 모듈의 CustomException을 상속한다
+          → CustomException 자체가 HttpStatus를 시그니처에 포함하므로, 도메인 예외 생성자에 HttpStatus 인자 직접 사용 허용
+            (룰 [1] "도메인의 Spring 의존성 차단"의 예외 — common 추상화 경유 시 한정)
+        - 비즈니스별 도메인 예외 클래스 분리 허용 — 단, 모두 도메인 base exception을 상속해야 함
+          (예: OrderException(abstract base) → OrderNotFoundException, InvalidStatusTransitionException, SelfPurchaseException)
+        - 도메인 base exception은 abstract로 두고 각 비즈니스 케이스마다 구체 클래스로 정의
+        - IllegalArgumentException, IllegalStateException, NullPointerException 등 표준 예외를 도메인 로직에서 직접 사용 시 지적
+          (Objects.requireNonNull 포함 — null 검증도 도메인 예외로 처리)
+        - 예외 메시지는 도메인 예외 클래스 생성자에서 관리, 호출부에서 임의 문자열 메시지 사용 금지
+        - 에러 코드 카탈로그가 필요해질 때 common의 ErrorCodeSpec 인터페이스 활용 (선택)
 
         [13] Logging & Security
         - 민감 정보 로그 출력 차단 (사용자 ID, 카드번호, PG 토큰, 결제 키 등)
