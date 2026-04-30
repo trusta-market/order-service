@@ -190,11 +190,8 @@ public class Order {
             Instant deletedAt,
             UUID deletedBy
     ) {
-        // 확정 이후 상태는 confirmedAt 필수
-        if ((status == OrderStatus.CONFIRMED
-                || status == OrderStatus.SETTLEMENT_PROCESSING
-                || status == OrderStatus.COMPLETED)
-                && confirmedAt == null) {
+        // 확정 상태는 confirmedAt 필수
+        if (status == OrderStatus.CONFIRMED && confirmedAt == null) {
             throw RestoreStateMismatchException.missingConfirmedAt(status);
         }
 
@@ -275,18 +272,6 @@ public class Order {
         }
         this.status = OrderTransition.apply(this.status, OrderAction.CONFIRM);
         this.confirmedAt = at;
-    }
-
-    // CONFIRMED → SETTLEMENT_PROCESSING
-    // PurchaseConfirmed 이벤트 발행 직후 자체 전이 (정산 시작)
-    public void startSettlement() {
-        this.status = OrderTransition.apply(this.status, OrderAction.START_SETTLEMENT);
-    }
-
-    // SETTLEMENT_PROCESSING → COMPLETED
-    // Settlement의 SettlementCompleted 이벤트 수신 시
-    public void complete() {
-        this.status = OrderTransition.apply(this.status, OrderAction.COMPLETE);
     }
 
 

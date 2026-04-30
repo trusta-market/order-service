@@ -7,9 +7,7 @@ public enum OrderStatus {
     PAID,                  // 결제 완료 (Wallet holding 보관)
     SHIPPING,              // 배송 중
     DELIVERED,             // 배송 완료
-    CONFIRMED,             // 구매 확정 (Settlement에 정산 트리거)
-    SETTLEMENT_PROCESSING, // 정산 처리 중 (Settlement → Wallet transfer 진행)
-    COMPLETED,             // 거래 종결 (정산 완료)
+    CONFIRMED,             // 구매 확정 — 거래 종결 (정산 흐름은 추후 별도 PR에서 도입)
     CANCELLED,             // 결제 전 취소
     REFUND_PROCESSING,     // 결제 후 취소, 환불 처리 중
     REFUND_COMPLETED,      // 환불 완료
@@ -18,9 +16,8 @@ public enum OrderStatus {
     RETURN_REJECTED;       // 반송 거절
 
     // 종결 상태 — 더 이상 OrderTransition 표에 out-going 전이 없음
-    // RETURN_APPROVED 이후는 OrderReturnStatus 영역으로 이관 (Order 레벨에서는 종결)
     public boolean isTerminal() {
-        return this == COMPLETED
+        return this == CONFIRMED
                 || this == CANCELLED
                 || this == REFUND_COMPLETED
                 || this == RETURN_REJECTED

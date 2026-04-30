@@ -29,8 +29,6 @@ class OrderTransitionTest {
                 Arguments.of(OrderStatus.PAID, OrderAction.START_SHIPPING, OrderStatus.SHIPPING),
                 Arguments.of(OrderStatus.SHIPPING, OrderAction.MARK_DELIVERED, OrderStatus.DELIVERED),
                 Arguments.of(OrderStatus.DELIVERED, OrderAction.CONFIRM, OrderStatus.CONFIRMED),
-                Arguments.of(OrderStatus.CONFIRMED, OrderAction.START_SETTLEMENT, OrderStatus.SETTLEMENT_PROCESSING),
-                Arguments.of(OrderStatus.SETTLEMENT_PROCESSING, OrderAction.COMPLETE, OrderStatus.COMPLETED),
                 // cancel
                 Arguments.of(OrderStatus.REQUESTED, OrderAction.CANCEL, OrderStatus.CANCELLED),
                 Arguments.of(OrderStatus.PAYMENT_PENDING, OrderAction.CANCEL, OrderStatus.CANCELLED),
@@ -56,7 +54,7 @@ class OrderTransitionTest {
     static Stream<Arguments> invalidTransitions() {
         return Stream.of(
                 // 종결 상태에서의 모든 액션
-                Arguments.of(OrderStatus.COMPLETED, OrderAction.CANCEL),
+                Arguments.of(OrderStatus.CONFIRMED, OrderAction.CANCEL),
                 Arguments.of(OrderStatus.CANCELLED, OrderAction.REQUEST_PAYMENT),
                 Arguments.of(OrderStatus.REFUND_COMPLETED, OrderAction.CANCEL),
                 Arguments.of(OrderStatus.RETURN_REJECTED, OrderAction.APPROVE_RETURN),
@@ -69,9 +67,8 @@ class OrderTransitionTest {
                 // 잘못된 happy path 점프
                 Arguments.of(OrderStatus.REQUESTED, OrderAction.MARK_PAID),
                 Arguments.of(OrderStatus.PAID, OrderAction.MARK_DELIVERED),
-                Arguments.of(OrderStatus.CONFIRMED, OrderAction.COMPLETE),
-                // RETURN_APPROVED는 더 이상 OrderTransition 표에서 다음 액션 없음 (OrderReturnStatus 추적)
-                Arguments.of(OrderStatus.RETURN_APPROVED, OrderAction.COMPLETE)
+                // RETURN_APPROVED는 OrderTransition 표에서 다음 액션 없음 (OrderReturnStatus 추적)
+                Arguments.of(OrderStatus.RETURN_APPROVED, OrderAction.APPROVE_RETURN)
         );
     }
 }

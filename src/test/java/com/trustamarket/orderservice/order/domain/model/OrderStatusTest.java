@@ -12,7 +12,7 @@ class OrderStatusTest {
 
     // 종결 상태: OrderTransition 표에 out-going 전이가 없는 상태
     private static final Set<OrderStatus> TERMINAL = Set.of(
-            OrderStatus.COMPLETED,
+            OrderStatus.CONFIRMED,
             OrderStatus.CANCELLED,
             OrderStatus.REFUND_COMPLETED,
             OrderStatus.RETURN_REJECTED,

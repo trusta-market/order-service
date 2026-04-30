@@ -7,9 +7,7 @@ public enum OrderAction {
     MARK_PAID,            // PAYMENT_PENDING → PAID
     START_SHIPPING,       // PAID → SHIPPING
     MARK_DELIVERED,       // SHIPPING → DELIVERED
-    CONFIRM,              // DELIVERED → CONFIRMED
-    START_SETTLEMENT,     // CONFIRMED → SETTLEMENT_PROCESSING
-    COMPLETE,             // SETTLEMENT_PROCESSING → COMPLETED
+    CONFIRM,              // DELIVERED → CONFIRMED (거래 종결)
 
     CANCEL,               // (배송 시작 전) → CANCELLED 또는 REFUND_PROCESSING
     MARK_REFUNDED,        // REFUND_PROCESSING → REFUND_COMPLETED (Wallet RefundCompleted 수신)

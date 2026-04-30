@@ -6,7 +6,6 @@ import java.util.Map;
 
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.APPROVE_RETURN;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.CANCEL;
-import static com.trustamarket.orderservice.order.domain.model.OrderAction.COMPLETE;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.CONFIRM;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.MARK_DELIVERED;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.MARK_PAID;
@@ -14,10 +13,8 @@ import static com.trustamarket.orderservice.order.domain.model.OrderAction.MARK_
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.REJECT_RETURN;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.REQUEST_PAYMENT;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.REQUEST_RETURN;
-import static com.trustamarket.orderservice.order.domain.model.OrderAction.START_SETTLEMENT;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.START_SHIPPING;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.CANCELLED;
-import static com.trustamarket.orderservice.order.domain.model.OrderStatus.COMPLETED;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.CONFIRMED;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.DELIVERED;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.PAID;
@@ -28,7 +25,6 @@ import static com.trustamarket.orderservice.order.domain.model.OrderStatus.REQUE
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.RETURN_APPROVED;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.RETURN_REJECTED;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.RETURN_REQUESTED;
-import static com.trustamarket.orderservice.order.domain.model.OrderStatus.SETTLEMENT_PROCESSING;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.SHIPPING;
 
 // Order 상태 머신 — 표 기반
@@ -41,15 +37,13 @@ public final class OrderTransition {
     public record Key(OrderStatus from, OrderAction action) {}
 
     private static final Map<Key, OrderStatus> TABLE = Map.ofEntries(
-            // Happy path
+            // Happy path — REQUESTED부터 CONFIRMED까지. CONFIRMED가 거래 종결
             // Map.entry((현재상태+액션) -> 다음 상태)
             Map.entry(new Key(REQUESTED,             REQUEST_PAYMENT),  PAYMENT_PENDING),
             Map.entry(new Key(PAYMENT_PENDING,       MARK_PAID),        PAID),
             Map.entry(new Key(PAID,                  START_SHIPPING),   SHIPPING),
             Map.entry(new Key(SHIPPING,              MARK_DELIVERED),   DELIVERED),
             Map.entry(new Key(DELIVERED,             CONFIRM),          CONFIRMED),
-            Map.entry(new Key(CONFIRMED,             START_SETTLEMENT), SETTLEMENT_PROCESSING),
-            Map.entry(new Key(SETTLEMENT_PROCESSING, COMPLETE),         COMPLETED),
 
             // 취소 분기 (배송 시작 전까지만)
             Map.entry(new Key(REQUESTED,             CANCEL),           CANCELLED),

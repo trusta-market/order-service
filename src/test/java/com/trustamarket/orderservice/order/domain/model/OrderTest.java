@@ -82,7 +82,7 @@ class OrderTest {
     @Nested
     class HappyPath {
         @Test
-        @DisplayName("REQUESTED → COMPLETED 전체 흐름")
+        @DisplayName("REQUESTED → CONFIRMED 전체 흐름")
         void fullFlow() {
             Order order = newOrder();
 
@@ -102,12 +102,6 @@ class OrderTest {
             order.confirm(confirmedAt);
             assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
             assertThat(order.getConfirmedAt()).isEqualTo(confirmedAt);
-
-            order.startSettlement();
-            assertThat(order.getStatus()).isEqualTo(OrderStatus.SETTLEMENT_PROCESSING);
-
-            order.complete();
-            assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
         }
 
         @Test
@@ -415,15 +409,6 @@ class OrderTest {
         @DisplayName("CONFIRMED인데 confirmedAt == null이면 RestoreStateMismatch")
         void confirmedWithoutConfirmedAt() {
             assertThatThrownBy(() -> baseBuilder(OrderStatus.CONFIRMED).build())
-                    .isInstanceOf(RestoreStateMismatchException.class);
-        }
-
-        @Test
-        @DisplayName("SETTLEMENT_PROCESSING/COMPLETED도 confirmedAt 필수")
-        void settlementCompletedWithoutConfirmedAt() {
-            assertThatThrownBy(() -> baseBuilder(OrderStatus.SETTLEMENT_PROCESSING).build())
-                    .isInstanceOf(RestoreStateMismatchException.class);
-            assertThatThrownBy(() -> baseBuilder(OrderStatus.COMPLETED).build())
                     .isInstanceOf(RestoreStateMismatchException.class);
         }
 
