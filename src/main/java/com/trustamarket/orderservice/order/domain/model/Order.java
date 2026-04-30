@@ -1,6 +1,10 @@
 package com.trustamarket.orderservice.order.domain.model;
 
 import com.trustamarket.orderservice.order.domain.exception.AmountMismatchException;
+import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
+import com.trustamarket.orderservice.order.domain.exception.InvalidMoneyException;
+import com.trustamarket.orderservice.order.domain.exception.InvalidReasonException;
+import com.trustamarket.orderservice.order.domain.exception.InvalidTimestampException;
 import com.trustamarket.orderservice.order.domain.exception.SelfPurchaseException;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -67,6 +71,7 @@ public class Order {
             OrderType type,
             Money shippingFee
     ) {
+        validateRequiredForCreate(buyer, seller, product, type, shippingFee);
         validateInvariants(buyer, seller);
 
         Order order = new Order();
@@ -108,6 +113,7 @@ public class Order {
             Instant confirmedAt,
             int version
     ) {
+        validateRequiredForRestore(id, buyer, seller, product, type, status, shippingFee, totalAmount);
         validateInvariants(buyer, seller);
         validateAmountConsistency(product.price(), shippingFee, totalAmount);
 
@@ -132,6 +138,34 @@ public class Order {
         order.confirmedAt = confirmedAt;
         order.version = version;
         return order;
+    }
+
+    // 필수 인자 null 가드 — create()
+    // 도메인 self-defending: 호출부 누락 시 NPE 대신 도메인 예외로 명시 실패
+    private static void validateRequiredForCreate(
+            Buyer buyer, Seller seller, Product product, OrderType type, Money shippingFee
+    ) {
+        if (buyer == null) throw new InvalidIdException("buyer");
+        if (seller == null) throw new InvalidIdException("seller");
+        if (product == null) throw new InvalidIdException("product");
+        if (type == null) throw new InvalidIdException("orderType");
+        if (shippingFee == null) throw new InvalidMoneyException("shippingFee");
+    }
+
+    // 필수 인자 null 가드 — restoreInternal()
+    // create() 필수 인자 + 복원 전용(id, status, totalAmount). nullable: reasons, audit, confirmedAt
+    private static void validateRequiredForRestore(
+            OrderId id, Buyer buyer, Seller seller, Product product, OrderType type,
+            OrderStatus status, Money shippingFee, Money totalAmount
+    ) {
+        if (id == null) throw new InvalidIdException("orderId");
+        if (buyer == null) throw new InvalidIdException("buyer");
+        if (seller == null) throw new InvalidIdException("seller");
+        if (product == null) throw new InvalidIdException("product");
+        if (type == null) throw new InvalidIdException("orderType");
+        if (status == null) throw new InvalidIdException("status");
+        if (shippingFee == null) throw new InvalidMoneyException("shippingFee");
+        if (totalAmount == null) throw new InvalidMoneyException("totalAmount");
     }
 
     // 불변식 검증
@@ -187,6 +221,9 @@ public class Order {
     // 사용자가 구매 확정 액션 (POST /api/orders/{id}/confirmations)
     // confirmedAt에 확정 시각 기록 → PurchaseConfirmedEvent payload에 사용
     public void confirm(Instant at) {
+        if (at == null) {
+            throw new InvalidTimestampException("confirmedAt");
+        }
         this.status = OrderTransition.apply(this.status, OrderAction.CONFIRM);
         this.confirmedAt = at;
     }
@@ -210,6 +247,9 @@ public class Order {
     // OrderTransition 표가 잘못된 상태 조합을 자동 차단 (CancelNotAllowedException은 application 레이어에서 사전 검증 시 사용)
     // OrderCancelledEvent를 application/adapter 레이어에서 발행 (Wallet 환불 트리거)
     public void cancel(Reason reason) {
+        if (reason == null) {
+            throw new InvalidReasonException();
+        }
         this.status = OrderTransition.apply(this.status, OrderAction.CANCEL);
         this.cancelReason = reason;
     }
@@ -227,6 +267,9 @@ public class Order {
     // 반송 요청 - 배송 시작 후만 허용 (SHIPPING/DELIVERED → RETURN_REQUESTED)
     // 사용자(구매자) 액션. OrderReturnRequestedEvent를 application 레이어에서 발행
     public void requestReturn(Reason reason) {
+        if (reason == null) {
+            throw new InvalidReasonException();
+        }
         this.status = OrderTransition.apply(this.status, OrderAction.REQUEST_RETURN);
         this.returnReason = reason;
     }
@@ -240,6 +283,9 @@ public class Order {
     // 반송 거절 - RETURN_REQUESTED → RETURN_REJECTED
     // ADMIN 액션. 거절 사유 필수
     public void rejectReturn(Reason reason) {
+        if (reason == null) {
+            throw new InvalidReasonException();
+        }
         this.status = OrderTransition.apply(this.status, OrderAction.REJECT_RETURN);
         this.rejectReason = reason;
     }
@@ -249,6 +295,12 @@ public class Order {
     // 멱등성: 이미 삭제된 엔티티에 재호출돼도 최초 시각/주체 보존
     // 시각은 도메인이 시계에 의존하지 않도록 외부 주입 (헥사고날 원칙 + 테스트 용이성)
     public void delete(UUID userId, Instant at) {
+        if (userId == null) {
+            throw new InvalidIdException("deletedBy");
+        }
+        if (at == null) {
+            throw new InvalidTimestampException("deletedAt");
+        }
         if (this.deletedAt != null) {
             return;
         }

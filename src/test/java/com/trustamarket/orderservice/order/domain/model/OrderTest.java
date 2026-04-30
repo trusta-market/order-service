@@ -1,7 +1,11 @@
 package com.trustamarket.orderservice.order.domain.model;
 
 import com.trustamarket.orderservice.order.domain.exception.AmountMismatchException;
+import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
+import com.trustamarket.orderservice.order.domain.exception.InvalidMoneyException;
+import com.trustamarket.orderservice.order.domain.exception.InvalidReasonException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidStatusTransitionException;
+import com.trustamarket.orderservice.order.domain.exception.InvalidTimestampException;
 import com.trustamarket.orderservice.order.domain.exception.SelfPurchaseException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -56,6 +60,21 @@ class OrderTest {
 
             assertThatThrownBy(() -> Order.create(buyer, seller, product(), OrderType.LOW, SHIPPING))
                     .isInstanceOf(SelfPurchaseException.class);
+        }
+
+        @Test
+        @DisplayName("필수 인자 null이면 도메인 예외 (NPE 노출 차단)")
+        void rejectNullArguments() {
+            assertThatThrownBy(() -> Order.create(null, seller(), product(), OrderType.LOW, SHIPPING))
+                    .isInstanceOf(InvalidIdException.class);
+            assertThatThrownBy(() -> Order.create(buyer(), null, product(), OrderType.LOW, SHIPPING))
+                    .isInstanceOf(InvalidIdException.class);
+            assertThatThrownBy(() -> Order.create(buyer(), seller(), null, OrderType.LOW, SHIPPING))
+                    .isInstanceOf(InvalidIdException.class);
+            assertThatThrownBy(() -> Order.create(buyer(), seller(), product(), null, SHIPPING))
+                    .isInstanceOf(InvalidIdException.class);
+            assertThatThrownBy(() -> Order.create(buyer(), seller(), product(), OrderType.LOW, null))
+                    .isInstanceOf(InvalidMoneyException.class);
         }
     }
 
@@ -239,6 +258,68 @@ class OrderTest {
 
             assertThat(order.getDeletedAt()).isEqualTo(first);
             assertThat(order.getDeletedBy()).isEqualTo(firstUser);
+        }
+
+        @Test
+        @DisplayName("userId가 null이면 InvalidIdException")
+        void rejectNullUserId() {
+            Order order = newOrder();
+            assertThatThrownBy(() -> order.delete(null, Instant.now()))
+                    .isInstanceOf(InvalidIdException.class);
+        }
+
+        @Test
+        @DisplayName("at이 null이면 InvalidTimestampException")
+        void rejectNullAt() {
+            Order order = newOrder();
+            assertThatThrownBy(() -> order.delete(UUID.randomUUID(), null))
+                    .isInstanceOf(InvalidTimestampException.class);
+        }
+    }
+
+    @Nested
+    class NullGuards {
+        @Test
+        @DisplayName("confirm(null)은 InvalidTimestampException")
+        void confirmNull() {
+            Order order = newOrder();
+            order.requestPayment();
+            order.markPaid();
+            order.startShipping();
+            order.markDelivered();
+            assertThatThrownBy(() -> order.confirm(null))
+                    .isInstanceOf(InvalidTimestampException.class);
+        }
+
+        @Test
+        @DisplayName("cancel(null)은 InvalidReasonException")
+        void cancelNull() {
+            Order order = newOrder();
+            assertThatThrownBy(() -> order.cancel(null))
+                    .isInstanceOf(InvalidReasonException.class);
+        }
+
+        @Test
+        @DisplayName("requestReturn(null)은 InvalidReasonException")
+        void requestReturnNull() {
+            Order order = newOrder();
+            order.requestPayment();
+            order.markPaid();
+            order.startShipping();
+            assertThatThrownBy(() -> order.requestReturn(null))
+                    .isInstanceOf(InvalidReasonException.class);
+        }
+
+        @Test
+        @DisplayName("rejectReturn(null)은 InvalidReasonException")
+        void rejectReturnNull() {
+            Order order = newOrder();
+            order.requestPayment();
+            order.markPaid();
+            order.startShipping();
+            order.requestReturn(Reason.of("불량"));
+            assertThatThrownBy(() -> order.rejectReturn(null))
+                    .isInstanceOf(InvalidReasonException.class);
         }
     }
 
