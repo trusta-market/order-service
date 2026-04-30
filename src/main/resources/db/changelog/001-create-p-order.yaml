@@ -1,0 +1,59 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-p-order
+      author: lhk
+      changes:
+        - createTable:
+            tableName: p_order
+            columns:
+              - column: { name: id, type: uuid, constraints: { primaryKey: true, nullable: false } }
+
+              # Snapshot (cross-domain freeze)
+              - column: { name: buyer_id, type: uuid, constraints: { nullable: false } }
+              - column: { name: buyer_name, type: varchar(100), constraints: { nullable: false } }
+              - column: { name: seller_id, type: uuid, constraints: { nullable: false } }
+              - column: { name: seller_name, type: varchar(100), constraints: { nullable: false } }
+              - column: { name: product_id, type: uuid, constraints: { nullable: false } }
+              - column: { name: product_name, type: varchar(200), constraints: { nullable: false } }
+              - column: { name: product_price, type: bigint, constraints: { nullable: false } }
+
+              # 정책
+              - column: { name: type, type: varchar(20), constraints: { nullable: false } }
+              - column: { name: status, type: varchar(30), constraints: { nullable: false } }
+              - column: { name: shipping_fee, type: bigint, constraints: { nullable: false } }
+              - column: { name: total_amount, type: bigint, constraints: { nullable: false } }
+
+              # 사유 (nullable)
+              - column: { name: cancel_reason, type: varchar(200) }
+              - column: { name: return_reason, type: varchar(200) }
+              - column: { name: reject_reason, type: varchar(200) }
+
+              # 비즈니스 시간 (nullable, CONFIRMED 전이 시 채움)
+              - column: { name: confirmed_at, type: timestamp }
+
+              # audit (BaseUserEntity 매칭)
+              - column: { name: created_at, type: timestamp, constraints: { nullable: false } }
+              - column: { name: updated_at, type: timestamp, constraints: { nullable: false } }
+              - column: { name: deleted_at, type: timestamp }
+              - column: { name: created_by, type: uuid, constraints: { nullable: false } }
+              - column: { name: updated_by, type: uuid, constraints: { nullable: false } }
+              - column: { name: deleted_by, type: uuid }
+
+              # 동시성
+              - column: { name: version, type: int, defaultValueNumeric: 0, constraints: { nullable: false } }
+
+        - createIndex:
+            tableName: p_order
+            indexName: idx_p_order_buyer_id
+            columns:
+              - column: { name: buyer_id }
+        - createIndex:
+            tableName: p_order
+            indexName: idx_p_order_seller_id
+            columns:
+              - column: { name: seller_id }
+        - createIndex:
+            tableName: p_order
+            indexName: idx_p_order_status
+            columns:
+              - column: { name: status }
