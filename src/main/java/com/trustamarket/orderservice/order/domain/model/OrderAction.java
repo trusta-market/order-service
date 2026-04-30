@@ -12,6 +12,7 @@ public enum OrderAction {
     COMPLETE,             // SETTLEMENT_PROCESSING → COMPLETED
 
     CANCEL,               // (배송 시작 전) → CANCELLED 또는 REFUND_PROCESSING
+    MARK_REFUNDED,        // REFUND_PROCESSING → REFUND_COMPLETED (Wallet RefundCompleted 수신)
 
     REQUEST_RETURN,       // (배송 시작 후) → RETURN_REQUESTED
     APPROVE_RETURN,       // RETURN_REQUESTED → RETURN_APPROVED
