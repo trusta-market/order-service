@@ -22,14 +22,22 @@ public record Money(long value) {
         if (other == null) {
             throw new InvalidMoneyException("other");
         }
-        return new Money(this.value + other.value);
+        try {
+            return new Money(Math.addExact(this.value, other.value));
+        } catch (ArithmeticException overflow) {
+            throw new InvalidMoneyException("plus", this.value, other.value);
+        }
     }
 
     public Money minus(Money other) {
         if (other == null) {
             throw new InvalidMoneyException("other");
         }
-        return new Money(this.value - other.value);
+        try {
+            return new Money(Math.subtractExact(this.value, other.value));
+        } catch (ArithmeticException overflow) {
+            throw new InvalidMoneyException("minus", this.value, other.value);
+        }
     }
 
     public boolean equalsAmount(Money other) {

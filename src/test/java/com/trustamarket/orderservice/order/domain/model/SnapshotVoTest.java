@@ -63,9 +63,11 @@ class SnapshotVoTest {
         }
 
         @Test
-        @DisplayName("name이 빈 문자열이면 거부")
+        @DisplayName("name이 빈/null이면 거부")
         void rejectBlankName() {
             assertThatThrownBy(() -> Seller.of(UUID.randomUUID(), "  "))
+                    .isInstanceOf(InvalidNameException.class);
+            assertThatThrownBy(() -> Seller.of(UUID.randomUUID(), null))
                     .isInstanceOf(InvalidNameException.class);
         }
     }
@@ -90,9 +92,11 @@ class SnapshotVoTest {
         }
 
         @Test
-        @DisplayName("name이 빈 문자열이면 거부")
+        @DisplayName("name이 빈/null이면 거부")
         void rejectBlankName() {
             assertThatThrownBy(() -> Product.of(UUID.randomUUID(), "", Money.of(1)))
+                    .isInstanceOf(InvalidNameException.class);
+            assertThatThrownBy(() -> Product.of(UUID.randomUUID(), null, Money.of(1)))
                     .isInstanceOf(InvalidNameException.class);
         }
 

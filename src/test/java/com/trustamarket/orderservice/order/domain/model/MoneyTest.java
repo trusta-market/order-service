@@ -83,4 +83,20 @@ class MoneyTest {
         assertThatThrownBy(() -> Money.of(1_000).equalsAmount(null))
                 .isInstanceOf(InvalidMoneyException.class);
     }
+
+    @Test
+    @DisplayName("plus 결과가 long 범위 초과 시 InvalidMoneyException (음수 wrap-around 차단)")
+    void plusOverflow() {
+        Money max = Money.of(Long.MAX_VALUE);
+        assertThatThrownBy(() -> max.plus(Money.of(1)))
+                .isInstanceOf(InvalidMoneyException.class);
+    }
+
+    @Test
+    @DisplayName("minus 결과가 음수면 InvalidMoneyException (Math.subtractExact는 long underflow도 방어)")
+    void minusUnderflow() {
+        Money zero = Money.ZERO;
+        assertThatThrownBy(() -> zero.minus(Money.of(1)))
+                .isInstanceOf(InvalidMoneyException.class);
+    }
 }

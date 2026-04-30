@@ -143,8 +143,14 @@ public class Order {
     }
 
     // 복원 시 totalAmount 정합성 검증 (DB 데이터 변조 감지)
+    // Math.addExact로 long 오버플로우 시 변조로 간주 (정상 주문 금액 범위에서 발생 X, 방어적 처리)
     private static void validateAmountConsistency(Money productPrice, Money shippingFee, Money totalAmount) {
-        long expected = productPrice.value() + shippingFee.value();
+        long expected;
+        try {
+            expected = Math.addExact(productPrice.value(), shippingFee.value());
+        } catch (ArithmeticException overflow) {
+            throw new AmountMismatchException(-1, totalAmount.value());
+        }
         if (totalAmount.value() != expected) {
             throw new AmountMismatchException(expected, totalAmount.value());
         }
