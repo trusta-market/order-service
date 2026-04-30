@@ -1,0 +1,53 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-p-order-status-history
+      author: lhk
+      changes:
+        - createTable:
+            tableName: p_order_status_history
+            columns:
+              - column:
+                  name: order_status_history_id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: order_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: prev_status
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: next_status
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: reason
+                  type: varchar(200)
+
+              # append-only — created만 audit (BaseCreatedEntity)
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: uuid
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: p_order_status_history
+            indexName: idx_p_order_status_history_order_id_created_at
+            columns:
+              - column:
+                  name: order_id
+              - column:
+                  name: created_at
