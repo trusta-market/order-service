@@ -19,6 +19,10 @@ public class OrderJpaRepositoryAdapter implements OrderRepository {
     private final OrderJpaRepository jpaRepository;
     private final OrderMapper mapper;
 
+    // TODO: PK가 도메인에서 미리 생성되고 mapper가 매번 새 entity를 만드는 패턴이라
+    //  JpaRepository.save()가 항상 merge() 타고 SELECT가 1회 추가
+    //  Persistable<UUID> 구현은 동일 트랜잭션 내 재저장 시 세션 충돌 발생
+    //  새 PR (application) 들어가면서 use case 흐름 정리될 때 함께 최적화 (findById → 도메인 행위 → 트랜잭션 dirty checking 패턴 검토)
     @Override
     public Order save(Order order) {
         OrderJpaEntity entity = mapper.toEntity(order);
