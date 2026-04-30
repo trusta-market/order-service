@@ -26,7 +26,10 @@ import java.util.UUID;
 // soft delete: @SQLDelete + @SQLRestriction (실수로 hard delete 호출돼도 UPDATE로 변환되고 SELECT 시 자동 필터)
 @Entity
 @Table(name = "p_order")
-@SQLDelete(sql = "UPDATE p_order SET deleted_at = NOW() WHERE id = ?")
+// @SQLDelete: 정상 삭제는 BaseUserEntity.delete(UUID)+save() 경로로 deletedBy가 entity에 set됨.
+// 이 fallback SQL은 잘못된 hard delete 호출 시 활성 — system UUID(all zeros)로 마킹해 비정상 삭제 식별 가능
+@SQLDelete(sql = "UPDATE p_order SET deleted_at = NOW(), " +
+        "deleted_by = '00000000-0000-0000-0000-000000000000' WHERE id = ?")
 @SQLRestriction("deleted_at IS NULL")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

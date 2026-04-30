@@ -25,13 +25,23 @@ public class JpaAuditingConfig {
     AuditorAware<UUID> auditorProvider() {
         return () -> {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth == null
-                    || !auth.isAuthenticated()
-                    || auth instanceof AnonymousAuthenticationToken) {
+            if (isUnauthenticated(auth)) {
                 return Optional.of(SYSTEM_USER);
             }
-            // PR 6 인증 구현 후 principal 구조에 맞게 UUID 추출 (예: ((UserPrincipal) auth.getPrincipal()).getUserId())
-            return Optional.of(SYSTEM_USER);
+            return Optional.of(extractUserIdOrFallback(auth));
         };
+    }
+
+    private static boolean isUnauthenticated(Authentication auth) {
+        return auth == null
+                || !auth.isAuthenticated()
+                || auth instanceof AnonymousAuthenticationToken;
+    }
+
+    // PR 6 인증 구현 후 principal 구조에 맞게 UUID 추출:
+    //   return ((UserPrincipal) auth.getPrincipal()).getUserId();
+    // 현재는 principal 구조 미정 → SYSTEM_USER fallback
+    private static UUID extractUserIdOrFallback(Authentication auth) {
+        return SYSTEM_USER;
     }
 }
