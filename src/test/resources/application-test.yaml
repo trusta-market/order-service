@@ -1,0 +1,21 @@
+spring:
+  config:
+    import: ""    # Spring Cloud Config 비활성 (테스트는 외부 config 의존 없음)
+
+  cloud:
+    config:
+      enabled: false
+      import-check:
+        enabled: false
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    enabled: true
