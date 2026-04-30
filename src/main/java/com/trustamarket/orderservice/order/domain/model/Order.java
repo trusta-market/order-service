@@ -195,8 +195,7 @@ public class Order {
                 || status == OrderStatus.SETTLEMENT_PROCESSING
                 || status == OrderStatus.COMPLETED)
                 && confirmedAt == null) {
-            throw new RestoreStateMismatchException(
-                    "%s 상태는 confirmedAt이 필수입니다.".formatted(status));
+            throw RestoreStateMismatchException.missingConfirmedAt(status);
         }
 
         // 취소/환불 상태는 cancelReason 필수
@@ -204,8 +203,7 @@ public class Order {
                 || status == OrderStatus.REFUND_PROCESSING
                 || status == OrderStatus.REFUND_COMPLETED)
                 && cancelReason == null) {
-            throw new RestoreStateMismatchException(
-                    "%s 상태는 cancelReason이 필수입니다.".formatted(status));
+            throw RestoreStateMismatchException.missingCancelReason(status);
         }
 
         // 반송 진입 이후는 returnReason 필수
@@ -213,20 +211,17 @@ public class Order {
                 || status == OrderStatus.RETURN_APPROVED
                 || status == OrderStatus.RETURN_REJECTED)
                 && returnReason == null) {
-            throw new RestoreStateMismatchException(
-                    "%s 상태는 returnReason이 필수입니다.".formatted(status));
+            throw RestoreStateMismatchException.missingReturnReason(status);
         }
 
         // 반송 거절은 rejectReason 추가 필수
         if (status == OrderStatus.RETURN_REJECTED && rejectReason == null) {
-            throw new RestoreStateMismatchException(
-                    "RETURN_REJECTED 상태는 rejectReason이 필수입니다.");
+            throw RestoreStateMismatchException.missingRejectReason();
         }
 
         // soft delete 메타데이터는 둘 다 채워지거나 둘 다 비어야 함
         if ((deletedAt == null) != (deletedBy == null)) {
-            throw new RestoreStateMismatchException(
-                    "deletedAt/deletedBy는 동시에 채워져야 합니다.");
+            throw RestoreStateMismatchException.inconsistentDeletionMetadata();
         }
     }
 
