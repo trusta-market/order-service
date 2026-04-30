@@ -5,6 +5,7 @@ import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidMoneyException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidReasonException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidTimestampException;
+import com.trustamarket.orderservice.order.domain.exception.RestoreStateMismatchException;
 import com.trustamarket.orderservice.order.domain.exception.SelfPurchaseException;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -116,6 +117,8 @@ public class Order {
         validateRequiredForRestore(id, buyer, seller, product, type, status, shippingFee, totalAmount);
         validateInvariants(buyer, seller);
         validateAmountConsistency(product.price(), shippingFee, totalAmount);
+        validateStateConsistency(status, cancelReason, returnReason, rejectReason,
+                confirmedAt, deletedAt, deletedBy);
 
         Order order = new Order();
         order.id = id;
@@ -173,6 +176,57 @@ public class Order {
     private static void validateInvariants(Buyer buyer, Seller seller) {
         if (Objects.equals(buyer.id(), seller.id())) {
             throw new SelfPurchaseException();
+        }
+    }
+
+    // 복원 시 상태별 메타데이터 불변식 검증 — 도메인 행위 메서드를 우회하는 유일한 경로(restore)에서 잠금
+    // 정상 도메인 흐름에서는 발생할 수 없는 조합 → DB 변조 감지
+    private static void validateStateConsistency(
+            OrderStatus status,
+            Reason cancelReason,
+            Reason returnReason,
+            Reason rejectReason,
+            Instant confirmedAt,
+            Instant deletedAt,
+            UUID deletedBy
+    ) {
+        // 확정 이후 상태는 confirmedAt 필수
+        if ((status == OrderStatus.CONFIRMED
+                || status == OrderStatus.SETTLEMENT_PROCESSING
+                || status == OrderStatus.COMPLETED)
+                && confirmedAt == null) {
+            throw new RestoreStateMismatchException(
+                    "%s 상태는 confirmedAt이 필수입니다.".formatted(status));
+        }
+
+        // 취소/환불 상태는 cancelReason 필수
+        if ((status == OrderStatus.CANCELLED
+                || status == OrderStatus.REFUND_PROCESSING
+                || status == OrderStatus.REFUND_COMPLETED)
+                && cancelReason == null) {
+            throw new RestoreStateMismatchException(
+                    "%s 상태는 cancelReason이 필수입니다.".formatted(status));
+        }
+
+        // 반송 진입 이후는 returnReason 필수
+        if ((status == OrderStatus.RETURN_REQUESTED
+                || status == OrderStatus.RETURN_APPROVED
+                || status == OrderStatus.RETURN_REJECTED)
+                && returnReason == null) {
+            throw new RestoreStateMismatchException(
+                    "%s 상태는 returnReason이 필수입니다.".formatted(status));
+        }
+
+        // 반송 거절은 rejectReason 추가 필수
+        if (status == OrderStatus.RETURN_REJECTED && rejectReason == null) {
+            throw new RestoreStateMismatchException(
+                    "RETURN_REJECTED 상태는 rejectReason이 필수입니다.");
+        }
+
+        // soft delete 메타데이터는 둘 다 채워지거나 둘 다 비어야 함
+        if ((deletedAt == null) != (deletedBy == null)) {
+            throw new RestoreStateMismatchException(
+                    "deletedAt/deletedBy는 동시에 채워져야 합니다.");
         }
     }
 
