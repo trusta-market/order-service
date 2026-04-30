@@ -1,6 +1,7 @@
 package com.trustamarket.orderservice.order.domain.model;
 
 import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
+import com.trustamarket.orderservice.order.domain.exception.InvalidMoneyException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidNameException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -99,7 +100,7 @@ class SnapshotVoTest {
         @DisplayName("price가 null이면 거부")
         void rejectNullPrice() {
             assertThatThrownBy(() -> Product.of(UUID.randomUUID(), "노트북", null))
-                    .isInstanceOf(InvalidIdException.class);
+                    .isInstanceOf(InvalidMoneyException.class);
         }
     }
 

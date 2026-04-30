@@ -1,6 +1,7 @@
 package com.trustamarket.orderservice.order.domain.model;
 
 import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
+import com.trustamarket.orderservice.order.domain.exception.InvalidMoneyException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidNameException;
 
 import java.util.UUID;
@@ -18,7 +19,7 @@ public record Product(UUID id, String name, Money price) {
             throw new InvalidNameException("productName");
         }
         if (price == null) {
-            throw new InvalidIdException("productPrice");
+            throw new InvalidMoneyException("productPrice");
         }
     }
 

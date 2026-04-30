@@ -62,4 +62,25 @@ class MoneyTest {
         assertThat(Money.of(1_000).equalsAmount(Money.of(1_000))).isTrue();
         assertThat(Money.of(1_000).equalsAmount(Money.of(2_000))).isFalse();
     }
+
+    @Test
+    @DisplayName("plus에 null 인자 → InvalidMoneyException")
+    void plusNull() {
+        assertThatThrownBy(() -> Money.of(1_000).plus(null))
+                .isInstanceOf(InvalidMoneyException.class);
+    }
+
+    @Test
+    @DisplayName("minus에 null 인자 → InvalidMoneyException")
+    void minusNull() {
+        assertThatThrownBy(() -> Money.of(1_000).minus(null))
+                .isInstanceOf(InvalidMoneyException.class);
+    }
+
+    @Test
+    @DisplayName("equalsAmount에 null 인자 → InvalidMoneyException")
+    void equalsAmountNull() {
+        assertThatThrownBy(() -> Money.of(1_000).equalsAmount(null))
+                .isInstanceOf(InvalidMoneyException.class);
+    }
 }

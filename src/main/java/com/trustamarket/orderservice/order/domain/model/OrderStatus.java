@@ -17,11 +17,13 @@ public enum OrderStatus {
     RETURN_APPROVED,       // 반송 승인 (이후 OrderReturnStatus가 추적)
     RETURN_REJECTED;       // 반송 거절
 
-    // 종결 상태 — 더 이상 전이 불가
+    // 종결 상태 — 더 이상 OrderTransition 표에 out-going 전이 없음
+    // RETURN_APPROVED 이후는 OrderReturnStatus 영역으로 이관 (Order 레벨에서는 종결)
     public boolean isTerminal() {
         return this == COMPLETED
                 || this == CANCELLED
                 || this == REFUND_COMPLETED
-                || this == RETURN_REJECTED;
+                || this == RETURN_REJECTED
+                || this == RETURN_APPROVED;
     }
 }

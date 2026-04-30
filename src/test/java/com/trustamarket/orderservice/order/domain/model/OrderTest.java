@@ -217,26 +217,27 @@ class OrderTest {
         void delete() {
             Order order = newOrder();
             UUID userId = UUID.randomUUID();
+            Instant at = Instant.parse("2026-04-30T12:00:00Z");
 
-            order.delete(userId);
+            order.delete(userId, at);
 
             assertThat(order.isDeleted()).isTrue();
-            assertThat(order.getDeletedAt()).isNotNull();
+            assertThat(order.getDeletedAt()).isEqualTo(at);
             assertThat(order.getDeletedBy()).isEqualTo(userId);
         }
 
         @Test
         @DisplayName("이미 삭제된 엔티티에 재호출해도 최초 시각/주체 보존 (멱등성)")
-        void deleteIdempotent() throws InterruptedException {
+        void deleteIdempotent() {
             Order order = newOrder();
             UUID firstUser = UUID.randomUUID();
-            order.delete(firstUser);
-            Instant firstAt = order.getDeletedAt();
+            Instant first = Instant.parse("2026-04-30T12:00:00Z");
+            Instant later = Instant.parse("2026-04-30T13:00:00Z");
 
-            Thread.sleep(5);
-            order.delete(UUID.randomUUID());
+            order.delete(firstUser, first);
+            order.delete(UUID.randomUUID(), later);
 
-            assertThat(order.getDeletedAt()).isEqualTo(firstAt);
+            assertThat(order.getDeletedAt()).isEqualTo(first);
             assertThat(order.getDeletedBy()).isEqualTo(firstUser);
         }
     }
@@ -290,6 +291,27 @@ class OrderTest {
                     .version(0)
                     .build())
                     .isInstanceOf(AmountMismatchException.class);
+        }
+
+        @Test
+        @DisplayName("buyer.id == seller.id이면 SelfPurchase (DB 변조 감지)")
+        void rejectSelfPurchase() {
+            UUID sameId = UUID.randomUUID();
+            Buyer buyer = Buyer.of(sameId, "본인");
+            Seller seller = Seller.of(sameId, "본인");
+
+            assertThatThrownBy(() -> Order.restoreBuilder()
+                    .id(OrderId.generate())
+                    .buyer(buyer)
+                    .seller(seller)
+                    .product(product())
+                    .type(OrderType.LOW)
+                    .status(OrderStatus.REQUESTED)
+                    .shippingFee(SHIPPING)
+                    .totalAmount(PRICE.plus(SHIPPING))
+                    .version(0)
+                    .build())
+                    .isInstanceOf(SelfPurchaseException.class);
         }
     }
 }

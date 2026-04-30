@@ -108,6 +108,7 @@ public class Order {
             Instant confirmedAt,
             int version
     ) {
+        validateInvariants(buyer, seller);
         validateAmountConsistency(product.price(), shippingFee, totalAmount);
 
         Order order = new Order();
@@ -240,11 +241,12 @@ public class Order {
 
     // 소프트 삭제 - deletedAt + deletedBy 기록
     // 멱등성: 이미 삭제된 엔티티에 재호출돼도 최초 시각/주체 보존
-    public void delete(UUID userId) {
+    // 시각은 도메인이 시계에 의존하지 않도록 외부 주입 (헥사고날 원칙 + 테스트 용이성)
+    public void delete(UUID userId, Instant at) {
         if (this.deletedAt != null) {
             return;
         }
-        this.deletedAt = Instant.now();
+        this.deletedAt = at;
         this.deletedBy = userId;
     }
 
