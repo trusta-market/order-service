@@ -16,4 +16,13 @@ public final class OrderAccessGuard {
             throw new UnauthorizedOrderAccessException(order.getId().value(), actorId);
         }
     }
+
+    // GetOrderUseCase 용 — buyer 또는 seller 둘 중 하나라도 본인이면 됨 (ADMIN은 별도 endpoint)
+    public static void verifyBuyerOrSeller(Order order, UUID actorId) {
+        boolean isBuyer = order.getBuyer().id().equals(actorId);
+        boolean isSeller = order.getSeller().id().equals(actorId);
+        if (!isBuyer && !isSeller) {
+            throw new UnauthorizedOrderAccessException(order.getId().value(), actorId);
+        }
+    }
 }
