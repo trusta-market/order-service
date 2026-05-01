@@ -20,8 +20,7 @@ databaseChangeLog:
               - column:
                   name: prev_status
                   type: varchar(30)
-                  constraints:
-                    nullable: false
+                  # nullable — 최초 주문 생성 시점은 prev_status가 없음 (null로 기록)
               - column:
                   name: next_status
                   type: varchar(30)

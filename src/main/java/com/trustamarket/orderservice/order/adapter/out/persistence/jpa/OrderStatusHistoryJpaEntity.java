@@ -32,7 +32,8 @@ public class OrderStatusHistoryJpaEntity extends BaseCreatedEntity {
     private UUID orderId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "prev_status", nullable = false, length = 30, updatable = false)
+    @Column(name = "prev_status", length = 30, updatable = false)
+    // nullable — 최초 주문 생성 시점은 이전 상태 없음 (null)
     private OrderStatus prevStatus;
 
     @Enumerated(EnumType.STRING)

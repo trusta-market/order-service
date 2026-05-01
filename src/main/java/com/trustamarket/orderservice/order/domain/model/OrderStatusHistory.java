@@ -18,7 +18,7 @@ public record OrderStatusHistory(
     public OrderStatusHistory {
         if (id == null) throw new InvalidIdException("orderStatusHistoryId");
         if (orderId == null) throw new InvalidIdException("orderId");
-        if (prevStatus == null) throw new InvalidIdException("prevStatus");
+        // prevStatus는 null 허용 — 최초 주문 생성 시점은 이전 상태가 없음
         if (nextStatus == null) throw new InvalidIdException("nextStatus");
     }
 
