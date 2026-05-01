@@ -15,5 +15,10 @@ public interface SearchOrdersUseCase {
     record SearchOrdersQuery(
             OrderSearchCriteria criteria,
             Pageable pageable
-    ) {}
+    ) {
+        public SearchOrdersQuery {
+            if (criteria == null) throw new com.trustamarket.orderservice.order.domain.exception.InvalidIdException("criteria");
+            if (pageable == null) throw new com.trustamarket.orderservice.order.domain.exception.InvalidIdException("pageable");
+        }
+    }
 }

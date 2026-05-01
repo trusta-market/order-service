@@ -1,5 +1,6 @@
 package com.trustamarket.orderservice.order.application.port.out.query;
 
+import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
 
 import java.time.Instant;
@@ -14,4 +15,14 @@ public record OrderSearchCriteria(
         Instant toDate,            // createdAt <= toDate
         String buyerName           // buyer_name LIKE 연산 '%X%'
 ) {
+    public OrderSearchCriteria {
+        // 기간 역전 차단
+        if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
+            throw new InvalidIdException("dateRange");   // TODO: 시각 범위 전용 예외 신설 검토
+        }
+        // buyerName blank → null 정규화 (조건 무시 의도와 일관)
+        if (buyerName != null && buyerName.isBlank()) {
+            buyerName = null;
+        }
+    }
 }

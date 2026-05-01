@@ -1,5 +1,6 @@
 package com.trustamarket.orderservice.order.application.port.in;
 
+import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
 import com.trustamarket.orderservice.order.domain.model.Order;
 
 import java.util.UUID;
@@ -13,5 +14,10 @@ public interface GetOrderUseCase {
     record GetOrderQuery(
             UUID orderId,
             UUID actorId   // 권한 검증용 (buyer.id == actorId 또는 seller.id == actorId)
-    ) {}
+    ) {
+        public GetOrderQuery {
+            if (orderId == null) throw new InvalidIdException("orderId");
+            if (actorId == null) throw new InvalidIdException("actorId");
+        }
+    }
 }

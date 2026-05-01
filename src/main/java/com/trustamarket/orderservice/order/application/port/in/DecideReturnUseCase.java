@@ -1,5 +1,8 @@
 package com.trustamarket.orderservice.order.application.port.in;
 
+import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
+import com.trustamarket.orderservice.order.domain.exception.InvalidReasonException;
+
 import java.util.UUID;
 
 // 반송 승인/거절 — POST /api/orders/{id}/returns/{returnId}/decisions
@@ -16,5 +19,14 @@ public interface DecideReturnUseCase {
             UUID adminId,
             Decision decision,
             String rejectReason   // REJECT일 때만 필수
-    ) {}
+    ) {
+        public DecideReturnCommand {
+            if (orderId == null) throw new InvalidIdException("orderId");
+            if (adminId == null) throw new InvalidIdException("adminId");
+            if (decision == null) throw new InvalidIdException("decision");
+            if (decision == Decision.REJECT && (rejectReason == null || rejectReason.isBlank())) {
+                throw new InvalidReasonException();
+            }
+        }
+    }
 }

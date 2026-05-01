@@ -1,5 +1,6 @@
 package com.trustamarket.orderservice.order.application.port.in;
 
+import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
 import com.trustamarket.orderservice.order.domain.model.Order;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,5 +15,10 @@ public interface GetMyPurchasesUseCase {
     record GetMyPurchasesQuery(
             UUID buyerId,
             Pageable pageable
-    ) {}
+    ) {
+        public GetMyPurchasesQuery {
+            if (buyerId == null) throw new InvalidIdException("buyerId");
+            if (pageable == null) throw new InvalidIdException("pageable");
+        }
+    }
 }
