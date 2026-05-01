@@ -23,9 +23,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,7 +36,7 @@ class RequestPaymentServiceTest {
     @InjectMocks RequestPaymentService service;
 
     @Test
-    @DisplayName("결제 시작 — Wallet 성공 → PAID 전이 + history 2건 기록")
+    @DisplayName("결제 시작 — Wallet 성공 → PAID 전이 + history 2건 명시적 시퀀스")
     void happyPath() {
         UUID buyerId = UUID.randomUUID();
         Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
@@ -48,8 +46,9 @@ class RequestPaymentServiceTest {
         service.requestPayment(new RequestPaymentCommand(order.getId().value(), buyerId));
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
-        // history 2건: REQUESTED→PAYMENT_PENDING, PAYMENT_PENDING→PAID
-        verify(historyRecorder, times(2)).record(any(OrderId.class), any(OrderStatus.class), any(OrderStatus.class), eq(null));
+        // history 2건 — 명시적 상태 시퀀스 검증
+        verify(historyRecorder).record(order.getId(), OrderStatus.REQUESTED, OrderStatus.PAYMENT_PENDING, null);
+        verify(historyRecorder).record(order.getId(), OrderStatus.PAYMENT_PENDING, OrderStatus.PAID, null);
         verify(orderRepository).save(order);
     }
 

@@ -18,6 +18,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -53,6 +54,8 @@ class CancelOrderServiceTest {
         service.cancel(new CancelOrderCommand(order.getId().value(), buyerId, "환불 요청"));
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUND_PROCESSING);
+        verify(historyRecorder).record(order.getId(), OrderStatus.PAID, OrderStatus.REFUND_PROCESSING, order.getCancelReason());
+        verify(orderRepository).save(order);
     }
 
     @Test
@@ -68,5 +71,6 @@ class CancelOrderServiceTest {
         ).isInstanceOf(UnauthorizedOrderAccessException.class);
 
         verify(orderRepository, never()).save(order);
+        verify(historyRecorder, never()).record(any(), any(), any(), any());
     }
 }

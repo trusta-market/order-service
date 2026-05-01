@@ -39,6 +39,7 @@ class DecideReturnServiceTest {
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.RETURN_APPROVED);
         verify(historyRecorder).record(order.getId(), OrderStatus.RETURN_REQUESTED, OrderStatus.RETURN_APPROVED, null);
+        verify(orderRepository).save(order);
     }
 
     @Test
@@ -53,5 +54,7 @@ class DecideReturnServiceTest {
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.RETURN_REJECTED);
         assertThat(order.getRejectReason().value()).isEqualTo("증빙 부족");
+        verify(historyRecorder).record(order.getId(), OrderStatus.RETURN_REQUESTED, OrderStatus.RETURN_REJECTED, order.getRejectReason());
+        verify(orderRepository).save(order);
     }
 }
