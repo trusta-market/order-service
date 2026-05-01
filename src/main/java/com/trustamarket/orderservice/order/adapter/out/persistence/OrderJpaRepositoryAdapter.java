@@ -72,7 +72,11 @@ public class OrderJpaRepositoryAdapter implements OrderRepository {
 
     @Override
     public Page<Order> search(OrderSearchCriteria criteria, Pageable pageable) {
-        return jpaRepository.findAll(toSpecification(criteria), pageable).map(mapper::toDomain);
+        // null criteria → 빈 조건으로 전체 조회 폴백 (NPE 방지)
+        OrderSearchCriteria safe = criteria != null
+                ? criteria
+                : new OrderSearchCriteria(null, null, null, null);
+        return jpaRepository.findAll(toSpecification(safe), pageable).map(mapper::toDomain);
     }
 
     // 동적 검색 조건 — null 필드는 무시

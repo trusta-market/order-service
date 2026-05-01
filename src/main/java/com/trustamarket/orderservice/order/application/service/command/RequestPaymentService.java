@@ -8,6 +8,7 @@ import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPor
 import com.trustamarket.orderservice.order.application.service.support.OrderAccessGuard;
 import com.trustamarket.orderservice.order.application.service.support.OrderHistoryRecorder;
 import com.trustamarket.orderservice.order.domain.exception.InsufficientPointBalanceException;
+import com.trustamarket.orderservice.order.domain.exception.WalletCommunicationException;
 import com.trustamarket.orderservice.order.domain.model.Order;
 import com.trustamarket.orderservice.order.domain.model.OrderId;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
@@ -35,9 +36,7 @@ public class RequestPaymentService implements RequestPaymentUseCase {
         order.requestPayment();   // REQUESTED → PAYMENT_PENDING
         historyRecorder.record(order.getId(), pre, order.getStatus(), null);
 
-        DeductPointResponse res = walletPaymentPort.deduct(
-                new DeductPointRequest(cmd.orderId(), cmd.buyerId(), order.getTotalAmount().value())
-        );
+        DeductPointResponse res = callWallet(cmd, order);
         if (!res.isSuccess()) {
             throw new InsufficientPointBalanceException(
                     order.getTotalAmount().value(),
@@ -52,6 +51,23 @@ public class RequestPaymentService implements RequestPaymentUseCase {
         historyRecorder.record(order.getId(), prePaid, order.getStatus(), null);
 
         orderRepository.save(order);
-        // TODO: 다음 PR — PaymentCompleted 구독으로 전환 시, 여기서 PaymentRequested 이벤트만 발행
+        // TODO: 후속 PR — PaymentCompleted 구독으로 전환 시, 여기서 PaymentRequested 이벤트만 발행
+    }
+
+    // Wallet 동기 호출 + null 응답/예외를 도메인 예외로 일관 변환
+    private DeductPointResponse callWallet(RequestPaymentCommand cmd, Order order) {
+        try {
+            DeductPointResponse res = walletPaymentPort.deduct(
+                    new DeductPointRequest(cmd.orderId(), cmd.buyerId(), order.getTotalAmount().value())
+            );
+            if (res == null) {
+                throw new WalletCommunicationException();
+            }
+            return res;
+        } catch (InsufficientPointBalanceException | WalletCommunicationException e) {
+            throw e;   // 도메인 예외는 그대로 위임
+        } catch (RuntimeException e) {
+            throw new WalletCommunicationException(e);
+        }
     }
 }
