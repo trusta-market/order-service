@@ -42,6 +42,13 @@ databaseChangeLog:
                   constraints:
                     nullable: false
 
+        - addForeignKeyConstraint:
+            baseTableName: p_order_status_history
+            baseColumnNames: order_id
+            referencedTableName: p_order
+            referencedColumnNames: id
+            constraintName: fk_p_order_status_history_order_id
+
         - createIndex:
             tableName: p_order_status_history
             indexName: idx_p_order_status_history_order_id_created_at
