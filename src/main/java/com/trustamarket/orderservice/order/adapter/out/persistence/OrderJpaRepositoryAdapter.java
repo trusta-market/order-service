@@ -2,7 +2,7 @@ package com.trustamarket.orderservice.order.adapter.out.persistence;
 
 import com.trustamarket.orderservice.order.adapter.out.persistence.jpa.OrderJpaEntity;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
-import com.trustamarket.orderservice.order.application.port.out.query.OrderSearchCriteria;
+import com.trustamarket.orderservice.order.application.port.in.OrderSearchCriteria;
 import com.trustamarket.orderservice.order.domain.exception.OrderNotFoundException;
 import com.trustamarket.orderservice.order.domain.model.Order;
 import com.trustamarket.orderservice.order.domain.model.OrderId;

@@ -1,7 +1,7 @@
 package com.trustamarket.orderservice.order.domain.model;
 
+import com.trustamarket.orderservice.order.domain.exception.InvalidEnumException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
-import com.trustamarket.orderservice.order.domain.exception.InvalidStatusException;
 
 import java.util.UUID;
 
@@ -20,7 +20,7 @@ public record OrderStatusHistory(
         if (id == null) throw new InvalidIdException("orderStatusHistoryId");
         if (orderId == null) throw new InvalidIdException("orderId");
         // prevStatus는 null 허용 — 최초 주문 생성 시점은 이전 상태가 없음
-        if (nextStatus == null) throw new InvalidStatusException("nextStatus");
+        if (nextStatus == null) throw new InvalidEnumException("nextStatus");
     }
 
     // 새 history 생성

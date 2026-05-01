@@ -1,6 +1,6 @@
 package com.trustamarket.orderservice.order.application.port.out;
 
-import com.trustamarket.orderservice.order.application.port.out.query.OrderSearchCriteria;
+import com.trustamarket.orderservice.order.application.port.in.OrderSearchCriteria;
 import com.trustamarket.orderservice.order.domain.model.Order;
 import com.trustamarket.orderservice.order.domain.model.OrderId;
 import org.springframework.data.domain.Page;

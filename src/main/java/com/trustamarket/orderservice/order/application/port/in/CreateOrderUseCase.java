@@ -1,5 +1,6 @@
 package com.trustamarket.orderservice.order.application.port.in;
 
+import com.trustamarket.orderservice.order.domain.exception.InvalidEnumException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidMoneyException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidNameException;
@@ -29,7 +30,7 @@ public interface CreateOrderUseCase {
             if (productId == null) throw new InvalidIdException("productId");
             if (productName == null || productName.isBlank()) throw new InvalidNameException("productName");
             if (productPrice < 0) throw new InvalidMoneyException(productPrice);
-            if (type == null) throw new InvalidIdException("orderType");
+            if (type == null) throw new InvalidEnumException("orderType");
             if (shippingFee < 0) throw new InvalidMoneyException(shippingFee);
         }
     }

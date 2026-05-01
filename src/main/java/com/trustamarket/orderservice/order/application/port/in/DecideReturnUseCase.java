@@ -1,5 +1,6 @@
 package com.trustamarket.orderservice.order.application.port.in;
 
+import com.trustamarket.orderservice.order.domain.exception.InvalidEnumException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidReasonException;
 
@@ -23,7 +24,7 @@ public interface DecideReturnUseCase {
         public DecideReturnCommand {
             if (orderId == null) throw new InvalidIdException("orderId");
             if (adminId == null) throw new InvalidIdException("adminId");
-            if (decision == null) throw new InvalidIdException("decision");
+            if (decision == null) throw new InvalidEnumException("decision");
             if (decision == Decision.REJECT && (rejectReason == null || rejectReason.isBlank())) {
                 throw new InvalidReasonException();
             }

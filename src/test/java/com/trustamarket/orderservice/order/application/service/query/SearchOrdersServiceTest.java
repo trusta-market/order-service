@@ -2,7 +2,7 @@ package com.trustamarket.orderservice.order.application.service.query;
 
 import com.trustamarket.orderservice.order.application.port.in.SearchOrdersUseCase.SearchOrdersQuery;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
-import com.trustamarket.orderservice.order.application.port.out.query.OrderSearchCriteria;
+import com.trustamarket.orderservice.order.application.port.in.OrderSearchCriteria;
 import com.trustamarket.orderservice.order.domain.model.Order;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
 import org.junit.jupiter.api.DisplayName;

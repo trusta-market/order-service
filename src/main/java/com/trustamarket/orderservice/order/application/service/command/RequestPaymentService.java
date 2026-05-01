@@ -55,6 +55,8 @@ public class RequestPaymentService implements RequestPaymentUseCase {
     }
 
     // Wallet 동기 호출 + null 응답/예외를 도메인 예외로 일관 변환
+    // 도메인 예외(OrderException 상속)는 검증/비즈니스 오류라 그대로 전파
+    // 그 외 RuntimeException(통신 장애, NPE 등)만 WalletCommunicationException으로 변환
     private DeductPointResponse callWallet(RequestPaymentCommand cmd, Order order) {
         try {
             DeductPointResponse res = walletPaymentPort.deduct(
@@ -64,10 +66,10 @@ public class RequestPaymentService implements RequestPaymentUseCase {
                 throw new WalletCommunicationException();
             }
             return res;
-        } catch (InsufficientPointBalanceException | WalletCommunicationException e) {
-            throw e;   // 도메인 예외는 그대로 위임
+        } catch (com.trustamarket.orderservice.order.domain.exception.OrderException e) {
+            throw e;   // 도메인 예외는 그대로 위임 (검증/비즈니스 오류)
         } catch (RuntimeException e) {
-            throw new WalletCommunicationException(e);
+            throw new WalletCommunicationException(e);   // 통신/시스템 오류만 변환
         }
     }
 }

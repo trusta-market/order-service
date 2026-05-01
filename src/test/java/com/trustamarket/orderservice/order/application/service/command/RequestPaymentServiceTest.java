@@ -79,6 +79,10 @@ class RequestPaymentServiceTest {
                 service.requestPayment(new RequestPaymentCommand(order.getId().value(), strangerId))
         ).isInstanceOf(UnauthorizedOrderAccessException.class);
 
+        // 권한 실패 시 부수효과 없어야 함
+        assertThat(order.getStatus()).isEqualTo(com.trustamarket.orderservice.order.domain.model.OrderStatus.REQUESTED);
         verify(walletPaymentPort, never()).deduct(any());
+        verify(historyRecorder, never()).record(any(), any(), any(), any());
+        verify(orderRepository, never()).save(any());
     }
 }
