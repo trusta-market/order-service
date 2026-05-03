@@ -2,7 +2,6 @@ package com.trustamarket.orderservice.order.application.service.command;
 
 import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUseCase;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
-import com.trustamarket.orderservice.order.application.port.out.SettlementMessagePort;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort.DeductPointRequest;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort.DeductPointResponse;
@@ -26,7 +25,6 @@ public class RequestPaymentService implements RequestPaymentUseCase {
     private final OrderRepository orderRepository;
     private final OrderHistoryRecorder historyRecorder;
     private final WalletPaymentPort walletPaymentPort;
-    private final SettlementMessagePort settlementPublisher;   // adapter → port 의존 (헥사고날 경계)
 
     @Override
     @Transactional
@@ -53,9 +51,7 @@ public class RequestPaymentService implements RequestPaymentUseCase {
         historyRecorder.record(order.getId(), prePaid, order.getStatus(), null);
 
         orderRepository.save(order);
-
-        // MVP — PAID 시점에 정산 요청 발행 (정공은 Confirm 시점 + Outbox)
-        settlementPublisher.publishForPaidOrder(order);
+        // 정산 발행은 ConfirmOrderService 로 이동 (정공 시점 — 구매 확정 후 분배)
     }
 
     // Wallet 동기 호출 + null 응답/예외를 도메인 예외로 일관 변환

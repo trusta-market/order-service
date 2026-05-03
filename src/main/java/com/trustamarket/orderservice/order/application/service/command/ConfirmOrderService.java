@@ -2,6 +2,7 @@ package com.trustamarket.orderservice.order.application.service.command;
 
 import com.trustamarket.orderservice.order.application.port.in.ConfirmOrderUseCase;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
+import com.trustamarket.orderservice.order.application.port.out.SettlementMessagePort;
 import com.trustamarket.orderservice.order.application.service.support.OrderAccessGuard;
 import com.trustamarket.orderservice.order.application.service.support.OrderHistoryRecorder;
 import com.trustamarket.orderservice.order.domain.model.Order;
@@ -13,14 +14,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
-// DELIVERED → CONFIRMED (거래 종결)
-// 정산 흐름은 본 PR scope 외 (PR 4에서 SETTLEMENT_PROCESSING/COMPLETED 제거됨)
+// DELIVERED → CONFIRMED (정공) 또는 PAID → CONFIRMED (시연용 배송 우회 — OrderTransition 참조).
+// CONFIRMED 전이 직후 정산 요청 Kafka 발행 (정공 시점 — 이전 PR 의 RequestPayment 시점 발행은 임시였음).
 @Service
 @RequiredArgsConstructor
 public class ConfirmOrderService implements ConfirmOrderUseCase {
 
     private final OrderRepository orderRepository;
     private final OrderHistoryRecorder historyRecorder;
+    private final SettlementMessagePort settlementPublisher;
 
     @Override
     @Transactional
@@ -33,6 +35,8 @@ public class ConfirmOrderService implements ConfirmOrderUseCase {
         historyRecorder.record(order.getId(), pre, order.getStatus(), null);
 
         orderRepository.save(order);
-        // TODO: 다음 PR — PurchaseConfirmedEvent 발행 (Settlement 트리거)
+
+        // 정산 트리거 — 구매 확정 직후. wallet-service 의 PointSettlementListener 가 escrow→seller+fee 분배.
+        settlementPublisher.publishForPaidOrder(order);
     }
 }
