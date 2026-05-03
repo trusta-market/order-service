@@ -34,10 +34,11 @@ public class SettlementMessagePublisher implements SettlementMessagePort {
                 order.getBuyer().id(),
                 order.getSeller().id(),
                 order.getProduct().id(),
+                order.getProduct().name(),
                 order.getProduct().price().value(),
                 order.getShippingFee().value(),
                 order.getTotalAmount().value(),
-                Instant.now()  // MVP — 진짜 confirm 시점은 다음 PR
+                Instant.now()
         );
 
         kafkaTemplate.send(topic, order.getId().value().toString(), message)
