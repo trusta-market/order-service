@@ -13,5 +13,17 @@ spring:
       label: develop
       fail-fast: false
 
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false   # 컨슈머가 default-type 명시 사용 → 헤더 불필요
+
 # trusta.security.trust-gateway-headers 와 spring.main.allow-bean-definition-overriding 은
 # 보안/충돌 방지를 위해 default = false 유지. local/dev 프로파일에서만 명시적으로 true 활성화.
+trusta:
+  messaging:
+    topic:
+      settlement-requested: order.wallet-settlement.requested
