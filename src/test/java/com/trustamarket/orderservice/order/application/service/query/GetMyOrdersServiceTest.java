@@ -1,7 +1,9 @@
 package com.trustamarket.orderservice.order.application.service.query;
 
+import com.trustamarket.orderservice.order.application.dto.result.OrderSummaryView;
 import com.trustamarket.orderservice.order.application.port.in.GetMyOrdersUseCase.GetMyOrdersQuery;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
+import com.trustamarket.orderservice.order.application.service.OrderTestFixtures;
 import com.trustamarket.orderservice.order.domain.model.Order;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,9 +37,31 @@ class GetMyOrdersServiceTest {
         Page<Order> empty = new PageImpl<>(List.of());
         when(orderRepository.findByBuyerIdOrSellerId(actor, actor, pageable)).thenReturn(empty);
 
-        Page<Order> result = service.getMyOrders(new GetMyOrdersQuery(actor, pageable));
+        Page<OrderSummaryView> result = service.getMyOrders(new GetMyOrdersQuery(actor, pageable));
 
-        assertThat(result).isEqualTo(empty);
+        assertThat(result.getContent()).isEmpty();
         verify(orderRepository).findByBuyerIdOrSellerId(actor, actor, pageable);
+    }
+
+    @Test
+    @DisplayName("non-empty 결과 — 도메인 Order 가 OrderSummaryView 로 정확히 매핑됨 (회귀 가드)")
+    void mapsDomainToSummaryView() {
+        UUID buyer = UUID.randomUUID();
+        UUID seller = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 20);
+        Order order = OrderTestFixtures.requestedOrder(buyer, seller);
+        when(orderRepository.findByBuyerIdOrSellerId(buyer, buyer, pageable))
+                .thenReturn(new PageImpl<>(List.of(order)));
+
+        Page<OrderSummaryView> result = service.getMyOrders(new GetMyOrdersQuery(buyer, pageable));
+
+        assertThat(result.getContent()).hasSize(1);
+        OrderSummaryView v = result.getContent().get(0);
+        assertThat(v.orderId()).isEqualTo(order.getId().value());
+        assertThat(v.buyerName()).isEqualTo(order.getBuyer().name());
+        assertThat(v.sellerName()).isEqualTo(order.getSeller().name());
+        assertThat(v.productName()).isEqualTo(order.getProduct().name());
+        assertThat(v.status()).isEqualTo(order.getStatus());
+        assertThat(v.totalAmount()).isEqualTo(order.getTotalAmount().value());
     }
 }

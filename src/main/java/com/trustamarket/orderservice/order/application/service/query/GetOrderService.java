@@ -1,5 +1,6 @@
 package com.trustamarket.orderservice.order.application.service.query;
 
+import com.trustamarket.orderservice.order.application.dto.result.OrderDetailView;
 import com.trustamarket.orderservice.order.application.port.in.GetOrderUseCase;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
 import com.trustamarket.orderservice.order.application.service.support.OrderAccessGuard;
@@ -20,11 +21,11 @@ public class GetOrderService implements GetOrderUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public Order getOrder(GetOrderQuery query) {
+    public OrderDetailView getOrder(GetOrderQuery query) {
         // 1. 조회 — 없으면 OrderNotFoundException
         Order order = orderRepository.findByIdOrThrow(OrderId.of(query.orderId()));
         // 2. 권한 검증 — buyer 또는 seller 본인이어야 함. 아니면 UnauthorizedOrderAccessException
         OrderAccessGuard.verifyBuyerOrSeller(order, query.actorId());
-        return order;
+        return OrderDetailView.from(order);
     }
 }

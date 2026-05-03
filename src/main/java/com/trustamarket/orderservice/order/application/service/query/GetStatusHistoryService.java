@@ -1,9 +1,9 @@
 package com.trustamarket.orderservice.order.application.service.query;
 
+import com.trustamarket.orderservice.order.application.dto.result.OrderStatusHistoryView;
 import com.trustamarket.orderservice.order.application.port.in.GetStatusHistoryUseCase;
 import com.trustamarket.orderservice.order.application.port.out.OrderStatusHistoryRepository;
 import com.trustamarket.orderservice.order.domain.model.OrderId;
-import com.trustamarket.orderservice.order.domain.model.OrderStatusHistory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +20,9 @@ public class GetStatusHistoryService implements GetStatusHistoryUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OrderStatusHistory> getHistory(UUID orderId) {
-        return historyRepository.findByOrderId(OrderId.of(orderId));
+    public List<OrderStatusHistoryView> getHistory(UUID orderId) {
+        return historyRepository.findByOrderId(OrderId.of(orderId)).stream()
+                .map(OrderStatusHistoryView::from)
+                .toList();
     }
 }
