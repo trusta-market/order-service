@@ -14,6 +14,13 @@ public record CreateOrderResult(
         long totalAmount,
         Instant createdAt
 ) {
+    public CreateOrderResult {
+        if (orderId == null) throw new IllegalArgumentException("orderId");
+        if (status == null) throw new IllegalArgumentException("status");
+        if (totalAmount < 0) throw new IllegalArgumentException("totalAmount must be >= 0");
+        // createdAt 은 JPA Auditing 이 commit 시점에 채움 — read-model 매핑 시점엔 null 가능 (fail-fast 회피)
+    }
+
     public static CreateOrderResult from(Order order) {
         return new CreateOrderResult(
                 order.getId().value(),

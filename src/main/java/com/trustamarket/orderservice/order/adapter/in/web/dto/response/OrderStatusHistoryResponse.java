@@ -12,6 +12,15 @@ public record OrderStatusHistoryResponse(
         OrderStatus nextStatus,
         String reason              // nullable — 사유 있는 전이만
 ) {
+    public OrderStatusHistoryResponse {
+        if (id == null) throw new IllegalArgumentException("id");
+        if (nextStatus == null) throw new IllegalArgumentException("nextStatus");
+        // prevStatus 는 의도적으로 nullable (최초 생성)
+        if (reason != null && reason.isBlank()) {
+            throw new IllegalArgumentException("reason 은 빈 문자열이면 안됩니다.");
+        }
+    }
+
     public static OrderStatusHistoryResponse from(OrderStatusHistoryView v) {
         return new OrderStatusHistoryResponse(
                 v.id(),

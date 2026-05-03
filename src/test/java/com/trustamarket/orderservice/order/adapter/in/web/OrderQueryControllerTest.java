@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -141,17 +143,22 @@ class OrderQueryControllerTest {
     // ─── GET /api/v1/orders/{id} ───
 
     @Test
-    @DisplayName("getOrder — 200 + 상세 필드")
+    @DisplayName("getOrder — 200 + 상세 필드 + UseCase 에 정확한 query 전달")
     void getOrder_happyPath() throws Exception {
-        when(getOrderUseCase.getOrder(any())).thenReturn(detailView());
+        OrderDetailView view = detailView();
+        when(getOrderUseCase.getOrder(any())).thenReturn(view);
 
         mockMvc.perform(get("/api/v1/orders/{id}", orderUuid)
                         .with(authentication(TestAuth.memberAuth(memberUuid, "구매자"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.orderId").exists())
+                .andExpect(jsonPath("$.data.orderId").value(view.orderId().toString()))
                 .andExpect(jsonPath("$.data.buyerId").exists())
                 .andExpect(jsonPath("$.data.sellerId").exists())
                 .andExpect(jsonPath("$.data.totalAmount").exists());
+
+        // controller 가 path 의 orderId 와 SecurityContext 의 actorId 를 정확히 query 로 전달했는지 검증
+        verify(getOrderUseCase).getOrder(argThat(q ->
+                q.orderId().equals(orderUuid) && q.actorId().equals(memberUuid)));
     }
 
     @Test

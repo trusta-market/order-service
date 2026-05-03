@@ -24,6 +24,19 @@ public record OrderDetailResponse(
         Instant createdAt,
         Instant updatedAt
 ) {
+    public OrderDetailResponse {
+        if (orderId == null || buyerId == null || sellerId == null || productId == null) {
+            throw new IllegalArgumentException("id fields must not be null");
+        }
+        if (type == null || status == null) {
+            throw new IllegalArgumentException("type/status must not be null");
+        }
+        if (productPrice < 0 || shippingFee < 0 || totalAmount < 0) {
+            throw new IllegalArgumentException("amount fields must be >= 0");
+        }
+        // createdAt/updatedAt 은 JPA Auditing 영향 — null 허용
+    }
+
     public static OrderDetailResponse from(OrderDetailView v) {
         return new OrderDetailResponse(
                 v.orderId(),

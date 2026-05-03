@@ -25,6 +25,19 @@ public record OrderDetailView(
         Instant createdAt,
         Instant updatedAt
 ) {
+    public OrderDetailView {
+        if (orderId == null || buyerId == null || sellerId == null || productId == null) {
+            throw new IllegalArgumentException("id fields must not be null");
+        }
+        if (type == null || status == null) {
+            throw new IllegalArgumentException("type/status must not be null");
+        }
+        if (productPrice < 0 || shippingFee < 0 || totalAmount < 0) {
+            throw new IllegalArgumentException("amount fields must be >= 0");
+        }
+        // createdAt/updatedAt 은 JPA Auditing 이 commit 시점에 채움 — read-model 시점엔 null 가능
+    }
+
     public static OrderDetailView from(Order order) {
         return new OrderDetailView(
                 order.getId().value(),
