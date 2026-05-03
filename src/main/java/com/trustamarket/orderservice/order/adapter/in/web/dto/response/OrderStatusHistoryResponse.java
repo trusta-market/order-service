@@ -22,6 +22,7 @@ public record OrderStatusHistoryResponse(
     }
 
     public static OrderStatusHistoryResponse from(OrderStatusHistoryView v) {
+        if (v == null) throw new IllegalArgumentException("v");
         return new OrderStatusHistoryResponse(
                 v.id(),
                 v.prevStatus(),

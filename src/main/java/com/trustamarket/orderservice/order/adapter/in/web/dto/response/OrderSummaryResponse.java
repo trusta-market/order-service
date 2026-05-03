@@ -32,6 +32,7 @@ public record OrderSummaryResponse(
     }
 
     public static OrderSummaryResponse from(OrderSummaryView v) {
+        if (v == null) throw new IllegalArgumentException("v");
         return new OrderSummaryResponse(
                 v.orderId(),
                 v.buyerName(),

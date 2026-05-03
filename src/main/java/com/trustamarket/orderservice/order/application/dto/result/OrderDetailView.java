@@ -39,6 +39,7 @@ public record OrderDetailView(
     }
 
     public static OrderDetailView from(Order order) {
+        if (order == null) throw new IllegalArgumentException("order");
         return new OrderDetailView(
                 order.getId().value(),
                 order.getBuyer().id(), order.getBuyer().name(),

@@ -38,6 +38,7 @@ public record OrderDetailResponse(
     }
 
     public static OrderDetailResponse from(OrderDetailView v) {
+        if (v == null) throw new IllegalArgumentException("v");
         return new OrderDetailResponse(
                 v.orderId(),
                 v.buyerId(), v.buyerName(),

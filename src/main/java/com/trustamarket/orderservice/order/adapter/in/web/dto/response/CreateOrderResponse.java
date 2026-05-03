@@ -21,6 +21,7 @@ public record CreateOrderResponse(
     }
 
     public static CreateOrderResponse from(CreateOrderResult result) {
+        if (result == null) throw new IllegalArgumentException("result");
         return new CreateOrderResponse(
                 result.orderId(),
                 result.status(),

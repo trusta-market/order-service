@@ -22,6 +22,7 @@ public record OrderStatusHistoryView(
     }
 
     public static OrderStatusHistoryView from(OrderStatusHistory h) {
+        if (h == null) throw new IllegalArgumentException("h");
         return new OrderStatusHistoryView(
                 h.id(),
                 h.prevStatus(),
