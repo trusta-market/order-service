@@ -3,6 +3,7 @@ package com.trustamarket.orderservice.order.application.service.command;
 import com.trustamarket.orderservice.order.application.exception.UnauthorizedOrderAccessException;
 import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUseCase.RequestPaymentCommand;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
+import com.trustamarket.orderservice.order.application.port.out.SettlementMessagePort;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort.DeductPointResponse;
 import com.trustamarket.orderservice.order.application.service.OrderTestFixtures;
@@ -33,6 +34,7 @@ class RequestPaymentServiceTest {
     @Mock OrderRepository orderRepository;
     @Mock OrderHistoryRecorder historyRecorder;
     @Mock WalletPaymentPort walletPaymentPort;
+    @Mock SettlementMessagePort settlementPublisher;
     @InjectMocks RequestPaymentService service;
 
     @Test
