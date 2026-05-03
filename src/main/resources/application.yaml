@@ -2,6 +2,10 @@ spring:
   application:
     name: order-service
 
+  main:
+    # common JpaConfig 의 auditorAware 빈을 본 서비스 JpaAuditingConfig 가 override
+    allow-bean-definition-overriding: true
+
   profiles:
     default: local
 
