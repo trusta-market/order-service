@@ -1,8 +1,8 @@
 package com.trustamarket.orderservice.order.application.service.command;
 
-import com.trustamarket.orderservice.order.adapter.out.messaging.SettlementMessagePublisher;
 import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUseCase;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
+import com.trustamarket.orderservice.order.application.port.out.SettlementMessagePort;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort.DeductPointRequest;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort.DeductPointResponse;
@@ -26,7 +26,7 @@ public class RequestPaymentService implements RequestPaymentUseCase {
     private final OrderRepository orderRepository;
     private final OrderHistoryRecorder historyRecorder;
     private final WalletPaymentPort walletPaymentPort;
-    private final SettlementMessagePublisher settlementPublisher;
+    private final SettlementMessagePort settlementPublisher;   // adapter → port 의존 (헥사고날 경계)
 
     @Override
     @Transactional
