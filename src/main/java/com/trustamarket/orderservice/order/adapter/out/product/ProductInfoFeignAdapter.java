@@ -35,7 +35,8 @@ public class ProductInfoFeignAdapter implements ProductInfoPort {
                     || data.title() == null || data.title().isBlank()
                     || data.price() == null || data.price() < 0L
                     || data.status() == null || data.status().isBlank()) {
-                log.error("[Product] 응답 무결성 위반 — productId={}, data={}", productId, data);
+//                log.error("[Product] 응답 무결성 위반 — productId={}, data={}", productId, data);
+                log.warn("[Product] 응답 무결성 위반 - productId={}, reason=INVALID_PRODUCT_RESPONSE", productId);
                 throw new ProductLookupException(productId);
             }
             return new ProductInfo(
