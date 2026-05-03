@@ -20,6 +20,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.UUID;
 
+import org.mockito.ArgumentCaptor;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -57,8 +59,15 @@ class CreateOrderServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.status()).isEqualTo(OrderStatus.REQUESTED);
         assertThat(result.totalAmount()).isEqualTo(103_000L);   // 100k(server price) + 3k shipping
-        verify(orderRepository).save(any(Order.class));
         verify(historyRecorder).record(any(OrderId.class), eq(null), eq(OrderStatus.REQUESTED), eq(null));
+
+        // server snapshot 우선 검증 — sellerId / productName / productPrice 모두 product-service 진실값 사용 (client 입력 무시)
+        ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository).save(captor.capture());
+        Order saved = captor.getValue();
+        assertThat(saved.getSeller().id()).isEqualTo(sellerId);          // ProductInfo 의 sellerId
+        assertThat(saved.getProduct().name()).isEqualTo("정공-상품명");    // ProductInfo 의 name (cmd 의 "client-claim-name" 아님)
+        assertThat(saved.getProduct().price().value()).isEqualTo(100_000L);  // ProductInfo 의 price (cmd 의 999L 아님)
     }
 
     @Test

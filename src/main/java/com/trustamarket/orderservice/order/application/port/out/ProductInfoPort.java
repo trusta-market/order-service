@@ -17,6 +17,14 @@ public interface ProductInfoPort {
             long price,
             String status
     ) {
+        public ProductInfo {
+            if (id == null) throw new IllegalArgumentException("product id must not be null");
+            if (sellerId == null) throw new IllegalArgumentException("seller id must not be null");
+            if (name == null || name.isBlank()) throw new IllegalArgumentException("product name must not be blank");
+            if (status == null || status.isBlank()) throw new IllegalArgumentException("product status must not be blank");
+            if (price < 0L) throw new IllegalArgumentException("product price must be >= 0");
+        }
+
         public boolean isOnSale() {
             return "ON_SALE".equals(status);
         }

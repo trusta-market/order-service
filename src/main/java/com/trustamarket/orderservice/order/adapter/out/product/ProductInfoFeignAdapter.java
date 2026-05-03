@@ -24,15 +24,25 @@ public class ProductInfoFeignAdapter implements ProductInfoPort {
         try {
             CommonResponse<ProductFeignClient.ProductInfoFeignResponse> resp =
                     feignClient.getProductInfo(productId);
+            if (resp == null || resp.data() == null) {
+                throw new ProductLookupException(productId);
+            }
             ProductFeignClient.ProductInfoFeignResponse data = resp.data();
-            if (data == null) {
+            // 외부 응답 엄격 검증 — 필수 필드 누락/비정상 시 fail-fast (금액 0 변환 같은 silent corruption 차단)
+            if (data.id() == null
+                    || !productId.equals(data.id())
+                    || data.sellerId() == null
+                    || data.title() == null || data.title().isBlank()
+                    || data.price() == null || data.price() < 0L
+                    || data.status() == null || data.status().isBlank()) {
+                log.error("[Product] 응답 무결성 위반 — productId={}, data={}", productId, data);
                 throw new ProductLookupException(productId);
             }
             return new ProductInfo(
                     data.id(),
                     data.sellerId(),
                     data.title(),
-                    data.price() == null ? 0L : data.price(),
+                    data.price(),
                     data.status()
             );
         } catch (FeignException e) {
