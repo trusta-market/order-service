@@ -6,7 +6,6 @@ import com.trustamarket.orderservice.order.application.service.support.OrderHist
 import com.trustamarket.orderservice.order.domain.model.Buyer;
 import com.trustamarket.orderservice.order.domain.model.Money;
 import com.trustamarket.orderservice.order.domain.model.Order;
-import com.trustamarket.orderservice.order.domain.model.OrderId;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
 import com.trustamarket.orderservice.order.domain.model.Product;
 import com.trustamarket.orderservice.order.domain.model.Seller;
@@ -23,7 +22,7 @@ public class CreateOrderService implements CreateOrderUseCase {
 
     @Override
     @Transactional
-    public OrderId createOrder(CreateOrderCommand cmd) {
+    public Order createOrder(CreateOrderCommand cmd) {
         Order order = Order.create(
                 Buyer.of(cmd.buyerId(), cmd.buyerName()),
                 Seller.of(cmd.sellerId(), cmd.sellerName()),
@@ -34,6 +33,6 @@ public class CreateOrderService implements CreateOrderUseCase {
         Order saved = orderRepository.save(order);
         // 신규 생성 — 이전 상태 없음 (prev=null), 진입 상태 REQUESTED
         historyRecorder.record(saved.getId(), null, OrderStatus.REQUESTED, null);
-        return saved.getId();
+        return saved;
     }
 }

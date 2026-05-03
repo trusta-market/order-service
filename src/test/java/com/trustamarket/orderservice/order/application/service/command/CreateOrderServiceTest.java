@@ -41,9 +41,10 @@ class CreateOrderServiceTest {
         );
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        OrderId result = service.createOrder(cmd);
+        Order result = service.createOrder(cmd);
 
         assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.REQUESTED);
         verify(orderRepository).save(any(Order.class));
         // 신규 생성: prev=null, next=REQUESTED
         verify(historyRecorder).record(any(OrderId.class), eq(null), eq(OrderStatus.REQUESTED), eq(null));

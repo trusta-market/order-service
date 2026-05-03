@@ -12,3 +12,7 @@ spring:
     config:
       label: develop
       fail-fast: false
+
+trusta:
+  security:
+    trust-gateway-headers: true

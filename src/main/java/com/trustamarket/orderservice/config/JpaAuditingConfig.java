@@ -1,5 +1,6 @@
 package com.trustamarket.orderservice.config;
 
+import com.trustamarket.common.config.security.UserDetailsImpl;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
@@ -13,7 +14,7 @@ import java.util.UUID;
 
 // Spring Data Auditing 활성화 + AuditorAware 빈 등록
 // BaseUserEntity의 createdBy/updatedBy를 SecurityContext의 사용자 UUID로 자동 채움
-// 인증 미구현 단계에서는 SYSTEM_USER UUID로 fallback (PR 6에서 인증 도입 시 본체 작성)
+// 인증 컨텍스트가 없는 부트스트랩/배치/시스템 트랜잭션에서는 SYSTEM_USER로 fallback
 @Configuration
 @EnableJpaAuditing(auditorAwareRef = "auditorProvider")
 public class JpaAuditingConfig {
@@ -38,10 +39,12 @@ public class JpaAuditingConfig {
                 || auth instanceof AnonymousAuthenticationToken;
     }
 
-    // PR 6 인증 구현 후 principal 구조에 맞게 UUID 추출:
-    //   return ((UserPrincipal) auth.getPrincipal()).getUserId();
-    // 현재는 principal 구조 미정 → SYSTEM_USER fallback
+    // common 모듈의 LoginFilter가 X-User-* 헤더 → UserDetailsImpl을 SecurityContext에 주입.
+    // principal 타입이 다르면(테스트용 임시 인증 등) SYSTEM_USER로 fallback.
     private static UUID extractUserIdOrFallback(Authentication auth) {
+        if (auth.getPrincipal() instanceof UserDetailsImpl user) {
+            return user.getUuid();
+        }
         return SYSTEM_USER;
     }
 }
