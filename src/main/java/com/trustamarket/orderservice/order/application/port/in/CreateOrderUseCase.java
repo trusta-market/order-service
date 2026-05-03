@@ -1,10 +1,10 @@
 package com.trustamarket.orderservice.order.application.port.in;
 
+import com.trustamarket.orderservice.order.application.dto.result.CreateOrderResult;
 import com.trustamarket.orderservice.order.domain.exception.InvalidEnumException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidMoneyException;
 import com.trustamarket.orderservice.order.domain.exception.InvalidNameException;
-import com.trustamarket.orderservice.order.domain.model.Order;
 import com.trustamarket.orderservice.order.domain.model.OrderType;
 
 import java.util.UUID;
@@ -13,8 +13,8 @@ import java.util.UUID;
 // Buyer/Seller/Product snapshot 정보는 클라이언트가 직접 전달 (cross-domain 호출 최소화)
 public interface CreateOrderUseCase {
 
-    // 영속화된 Order 반환 — 컨트롤러가 Response DTO로 매핑 (id/status/totalAmount/createdAt 노출)
-    Order createOrder(CreateOrderCommand command);
+    // 영속화 후 read-model(CreateOrderResult) 반환 — 컨트롤러는 도메인 모델을 직접 받지 않음.
+    CreateOrderResult createOrder(CreateOrderCommand command);
 
     record CreateOrderCommand(
             UUID buyerId, String buyerName,

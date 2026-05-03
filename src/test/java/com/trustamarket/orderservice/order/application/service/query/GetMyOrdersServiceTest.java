@@ -1,5 +1,6 @@
 package com.trustamarket.orderservice.order.application.service.query;
 
+import com.trustamarket.orderservice.order.application.dto.result.OrderSummaryView;
 import com.trustamarket.orderservice.order.application.port.in.GetMyOrdersUseCase.GetMyOrdersQuery;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
 import com.trustamarket.orderservice.order.domain.model.Order;
@@ -35,9 +36,9 @@ class GetMyOrdersServiceTest {
         Page<Order> empty = new PageImpl<>(List.of());
         when(orderRepository.findByBuyerIdOrSellerId(actor, actor, pageable)).thenReturn(empty);
 
-        Page<Order> result = service.getMyOrders(new GetMyOrdersQuery(actor, pageable));
+        Page<OrderSummaryView> result = service.getMyOrders(new GetMyOrdersQuery(actor, pageable));
 
-        assertThat(result).isEqualTo(empty);
+        assertThat(result.getContent()).isEmpty();
         verify(orderRepository).findByBuyerIdOrSellerId(actor, actor, pageable);
     }
 }

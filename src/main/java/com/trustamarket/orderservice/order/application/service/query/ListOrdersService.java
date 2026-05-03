@@ -1,8 +1,8 @@
 package com.trustamarket.orderservice.order.application.service.query;
 
+import com.trustamarket.orderservice.order.application.dto.result.OrderSummaryView;
 import com.trustamarket.orderservice.order.application.port.in.ListOrdersUseCase;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
-import com.trustamarket.orderservice.order.domain.model.Order;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,7 +18,7 @@ public class ListOrdersService implements ListOrdersUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<Order> list(Pageable pageable) {
-        return orderRepository.findAll(pageable);
+    public Page<OrderSummaryView> list(Pageable pageable) {
+        return orderRepository.findAll(pageable).map(OrderSummaryView::from);
     }
 }

@@ -1,7 +1,7 @@
 package com.trustamarket.orderservice.order.adapter.in.web.dto.response;
 
+import com.trustamarket.orderservice.order.application.dto.result.OrderStatusHistoryView;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
-import com.trustamarket.orderservice.order.domain.model.OrderStatusHistory;
 
 import java.util.UUID;
 
@@ -12,12 +12,12 @@ public record OrderStatusHistoryResponse(
         OrderStatus nextStatus,
         String reason              // nullable — 사유 있는 전이만
 ) {
-    public static OrderStatusHistoryResponse from(OrderStatusHistory history) {
+    public static OrderStatusHistoryResponse from(OrderStatusHistoryView v) {
         return new OrderStatusHistoryResponse(
-                history.id(),
-                history.prevStatus(),
-                history.nextStatus(),
-                history.reason() == null ? null : history.reason().value()
+                v.id(),
+                v.prevStatus(),
+                v.nextStatus(),
+                v.reason()
         );
     }
 }

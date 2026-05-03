@@ -1,4 +1,11 @@
+server:
+  port: 8103
+
 spring:
+  # local 한정 — common 의 auditorAware 빈을 본 서비스 JpaAuditingConfig 로 override 하려면 필요
+  main:
+    allow-bean-definition-overriding: true
+
   datasource:
     url: jdbc:postgresql://localhost:5432/trusta_market
     username: ${TRUSTA_DB_USERNAME}
@@ -17,3 +24,8 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
     enabled: true
+
+# Gateway 뒤에 배치된 환경에서만 X-User-* 헤더를 신뢰. local 시연 한정 활성.
+trusta:
+  security:
+    trust-gateway-headers: true

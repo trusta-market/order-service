@@ -1,4 +1,8 @@
 spring:
+  # 테스트도 본 서비스 JpaAuditingConfig 의 auditorAware 가 common 의 동명 빈을 override 해야 함
+  main:
+    allow-bean-definition-overriding: true
+
   config:
     import: ""    # Spring Cloud Config 비활성 (테스트는 외부 config 의존 없음)
 

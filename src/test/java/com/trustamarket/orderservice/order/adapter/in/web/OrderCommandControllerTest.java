@@ -16,6 +16,7 @@ import com.trustamarket.orderservice.order.application.port.in.DecideReturnUseCa
 import com.trustamarket.orderservice.order.application.port.in.DecideReturnUseCase.Decision;
 import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUseCase;
 import com.trustamarket.orderservice.order.application.port.in.RequestReturnUseCase;
+import com.trustamarket.orderservice.order.application.dto.result.CreateOrderResult;
 import com.trustamarket.orderservice.order.application.service.OrderTestFixtures;
 import com.trustamarket.orderservice.order.domain.model.Order;
 import com.trustamarket.orderservice.order.domain.model.OrderType;
@@ -68,7 +69,7 @@ class OrderCommandControllerTest {
                 UUID.randomUUID(), "상품", 100_000L,
                 OrderType.LOW, 3_000L);
         Order saved = OrderTestFixtures.requestedOrder(buyerId, sellerId);
-        when(createOrderUseCase.createOrder(any())).thenReturn(saved);
+        when(createOrderUseCase.createOrder(any())).thenReturn(CreateOrderResult.from(saved));
 
         mockMvc.perform(post("/api/v1/orders")
                         .with(authentication(TestAuth.memberAuth(buyerId, "구매자")))

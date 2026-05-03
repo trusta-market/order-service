@@ -1,5 +1,6 @@
 package com.trustamarket.orderservice.order.application.service.command;
 
+import com.trustamarket.orderservice.order.application.dto.result.CreateOrderResult;
 import com.trustamarket.orderservice.order.application.port.in.CreateOrderUseCase.CreateOrderCommand;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
 import com.trustamarket.orderservice.order.application.service.support.OrderHistoryRecorder;
@@ -41,10 +42,11 @@ class CreateOrderServiceTest {
         );
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Order result = service.createOrder(cmd);
+        CreateOrderResult result = service.createOrder(cmd);
 
         assertThat(result).isNotNull();
-        assertThat(result.getStatus()).isEqualTo(OrderStatus.REQUESTED);
+        assertThat(result.status()).isEqualTo(OrderStatus.REQUESTED);
+        assertThat(result.totalAmount()).isEqualTo(103_000L);
         verify(orderRepository).save(any(Order.class));
         // 신규 생성: prev=null, next=REQUESTED
         verify(historyRecorder).record(any(OrderId.class), eq(null), eq(OrderStatus.REQUESTED), eq(null));

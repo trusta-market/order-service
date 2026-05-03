@@ -1,9 +1,8 @@
 package com.trustamarket.orderservice.order.adapter.in.web.dto.response;
 
-import com.trustamarket.orderservice.order.domain.model.Order;
+import com.trustamarket.orderservice.order.application.dto.result.OrderDetailView;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
 import com.trustamarket.orderservice.order.domain.model.OrderType;
-import com.trustamarket.orderservice.order.domain.model.Reason;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -25,26 +24,22 @@ public record OrderDetailResponse(
         Instant createdAt,
         Instant updatedAt
 ) {
-    public static OrderDetailResponse from(Order order) {
+    public static OrderDetailResponse from(OrderDetailView v) {
         return new OrderDetailResponse(
-                order.getId().value(),
-                order.getBuyer().id(), order.getBuyer().name(),
-                order.getSeller().id(), order.getSeller().name(),
-                order.getProduct().id(), order.getProduct().name(), order.getProduct().price().value(),
-                order.getType(),
-                order.getStatus(),
-                order.getShippingFee().value(),
-                order.getTotalAmount().value(),
-                reasonValue(order.getCancelReason()),
-                reasonValue(order.getReturnReason()),
-                reasonValue(order.getRejectReason()),
-                order.getConfirmedAt(),
-                order.getCreatedAt(),
-                order.getUpdatedAt()
+                v.orderId(),
+                v.buyerId(), v.buyerName(),
+                v.sellerId(), v.sellerName(),
+                v.productId(), v.productName(), v.productPrice(),
+                v.type(),
+                v.status(),
+                v.shippingFee(),
+                v.totalAmount(),
+                v.cancelReason(),
+                v.returnReason(),
+                v.rejectReason(),
+                v.confirmedAt(),
+                v.createdAt(),
+                v.updatedAt()
         );
-    }
-
-    private static String reasonValue(Reason reason) {
-        return reason == null ? null : reason.value();
     }
 }

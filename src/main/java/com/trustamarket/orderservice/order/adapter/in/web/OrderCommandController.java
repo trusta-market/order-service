@@ -15,7 +15,6 @@ import com.trustamarket.orderservice.order.application.port.in.DecideReturnUseCa
 import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUseCase;
 import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUseCase.RequestPaymentCommand;
 import com.trustamarket.orderservice.order.application.port.in.RequestReturnUseCase;
-import com.trustamarket.orderservice.order.domain.model.Order;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -49,8 +48,9 @@ public class OrderCommandController {
     @PreAuthorize("hasRole('MEMBER')")
     public CreateOrderResponse create(@Valid @RequestBody CreateOrderRequest request) {
         UserDetailsImpl me = currentUser();
-        Order created = createOrderUseCase.createOrder(request.toCommand(me.getUuid(), me.getName()));
-        return CreateOrderResponse.from(created);
+        return CreateOrderResponse.from(
+                createOrderUseCase.createOrder(request.toCommand(me.getUuid(), me.getName()))
+        );
     }
 
     @PostMapping("/api/v1/orders/{orderId}/payment")

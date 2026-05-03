@@ -1,6 +1,6 @@
 package com.trustamarket.orderservice.order.adapter.in.web.dto.response;
 
-import com.trustamarket.orderservice.order.domain.model.Order;
+import com.trustamarket.orderservice.order.application.dto.result.CreateOrderResult;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
 
 import java.time.Instant;
@@ -13,12 +13,12 @@ public record CreateOrderResponse(
         long totalAmount,
         Instant createdAt
 ) {
-    public static CreateOrderResponse from(Order order) {
+    public static CreateOrderResponse from(CreateOrderResult result) {
         return new CreateOrderResponse(
-                order.getId().value(),
-                order.getStatus(),
-                order.getTotalAmount().value(),
-                order.getCreatedAt()
+                result.orderId(),
+                result.status(),
+                result.totalAmount(),
+                result.createdAt()
         );
     }
 }

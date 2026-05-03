@@ -1,6 +1,6 @@
 package com.trustamarket.orderservice.order.adapter.in.web.dto.response;
 
-import com.trustamarket.orderservice.order.domain.model.Order;
+import com.trustamarket.orderservice.order.application.dto.result.OrderSummaryView;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
 
 import java.time.Instant;
@@ -16,15 +16,15 @@ public record OrderSummaryResponse(
         long totalAmount,
         Instant createdAt
 ) {
-    public static OrderSummaryResponse from(Order order) {
+    public static OrderSummaryResponse from(OrderSummaryView v) {
         return new OrderSummaryResponse(
-                order.getId().value(),
-                order.getBuyer().name(),
-                order.getSeller().name(),
-                order.getProduct().name(),
-                order.getStatus(),
-                order.getTotalAmount().value(),
-                order.getCreatedAt()
+                v.orderId(),
+                v.buyerName(),
+                v.sellerName(),
+                v.productName(),
+                v.status(),
+                v.totalAmount(),
+                v.createdAt()
         );
     }
 }

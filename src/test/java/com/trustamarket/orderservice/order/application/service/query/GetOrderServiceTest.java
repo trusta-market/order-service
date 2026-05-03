@@ -1,5 +1,6 @@
 package com.trustamarket.orderservice.order.application.service.query;
 
+import com.trustamarket.orderservice.order.application.dto.result.OrderDetailView;
 import com.trustamarket.orderservice.order.application.exception.UnauthorizedOrderAccessException;
 import com.trustamarket.orderservice.order.application.port.in.GetOrderUseCase.GetOrderQuery;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
@@ -31,8 +32,9 @@ class GetOrderServiceTest {
         Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
         when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
 
-        Order result = service.getOrder(new GetOrderQuery(order.getId().value(), buyerId));
-        assertThat(result).isSameAs(order);
+        OrderDetailView result = service.getOrder(new GetOrderQuery(order.getId().value(), buyerId));
+        assertThat(result.orderId()).isEqualTo(order.getId().value());
+        assertThat(result.buyerId()).isEqualTo(buyerId);
     }
 
     @Test
@@ -42,8 +44,8 @@ class GetOrderServiceTest {
         Order order = OrderTestFixtures.requestedOrder(UUID.randomUUID(), sellerId);
         when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
 
-        Order result = service.getOrder(new GetOrderQuery(order.getId().value(), sellerId));
-        assertThat(result).isSameAs(order);
+        OrderDetailView result = service.getOrder(new GetOrderQuery(order.getId().value(), sellerId));
+        assertThat(result.sellerId()).isEqualTo(sellerId);
     }
 
     @Test

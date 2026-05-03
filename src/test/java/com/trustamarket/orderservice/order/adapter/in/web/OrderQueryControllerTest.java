@@ -5,6 +5,9 @@ import com.trustamarket.common.config.security.SecurityConfig;
 import com.trustamarket.common.exception.GlobalExceptionAdvice;
 import com.trustamarket.common.response.CommonResponseAdvice;
 import com.trustamarket.orderservice.config.web.SecurityExceptionAdvice;
+import com.trustamarket.orderservice.order.application.dto.result.OrderDetailView;
+import com.trustamarket.orderservice.order.application.dto.result.OrderStatusHistoryView;
+import com.trustamarket.orderservice.order.application.dto.result.OrderSummaryView;
 import com.trustamarket.orderservice.order.application.port.in.GetMyOrdersUseCase;
 import com.trustamarket.orderservice.order.application.port.in.GetMyPurchasesUseCase;
 import com.trustamarket.orderservice.order.application.port.in.GetMySalesUseCase;
@@ -14,10 +17,7 @@ import com.trustamarket.orderservice.order.application.port.in.ListOrdersUseCase
 import com.trustamarket.orderservice.order.application.port.in.SearchOrdersUseCase;
 import com.trustamarket.orderservice.order.application.service.OrderTestFixtures;
 import com.trustamarket.orderservice.order.domain.model.Order;
-import com.trustamarket.orderservice.order.domain.model.OrderId;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
-import com.trustamarket.orderservice.order.domain.model.OrderStatusHistory;
-import com.trustamarket.orderservice.order.domain.model.Reason;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,9 +59,13 @@ class OrderQueryControllerTest {
     private final UUID sellerUuid = UUID.randomUUID();
     private final UUID orderUuid = UUID.randomUUID();
 
-    private Page<Order> singleOrderPage() {
+    private Page<OrderSummaryView> singleOrderPage() {
         Order o = OrderTestFixtures.requestedOrder(memberUuid, sellerUuid);
-        return new PageImpl<>(List.of(o), PageRequest.of(0, 20), 1);
+        return new PageImpl<>(List.of(OrderSummaryView.from(o)), PageRequest.of(0, 20), 1);
+    }
+
+    private OrderDetailView detailView() {
+        return OrderDetailView.from(OrderTestFixtures.requestedOrder(memberUuid, sellerUuid));
     }
 
     // ─── GET /api/v1/orders/me ───
@@ -139,8 +143,7 @@ class OrderQueryControllerTest {
     @Test
     @DisplayName("getOrder — 200 + 상세 필드")
     void getOrder_happyPath() throws Exception {
-        Order order = OrderTestFixtures.requestedOrder(memberUuid, sellerUuid);
-        when(getOrderUseCase.getOrder(any())).thenReturn(order);
+        when(getOrderUseCase.getOrder(any())).thenReturn(detailView());
 
         mockMvc.perform(get("/api/v1/orders/{id}", orderUuid)
                         .with(authentication(TestAuth.memberAuth(memberUuid, "구매자"))))
@@ -228,17 +231,25 @@ class OrderQueryControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    @DisplayName("search — fromDate > toDate → 400 (criteria compact constructor)")
+    void search_invalidDateRange() throws Exception {
+        // OrderSearchCriteria 의 compact constructor 가 fromDate > toDate 를 InvalidSearchCriteriaException 으로 차단.
+        mockMvc.perform(get("/api/v1/admin/orders/search")
+                        .param("fromDate", "2026-12-31T00:00:00Z")
+                        .param("toDate",   "2026-01-01T00:00:00Z")
+                        .with(authentication(TestAuth.adminAuth(UUID.randomUUID()))))
+                .andExpect(status().isBadRequest());
+    }
+
     // ─── GET /api/v1/admin/orders/{id}/status-history ───
 
     @Test
     @DisplayName("getStatusHistory — 200 (ADMIN)")
     void getStatusHistory_happyPath() throws Exception {
-        OrderStatusHistory h = OrderStatusHistory.record(
-                OrderId.of(orderUuid),
-                null,
-                OrderStatus.REQUESTED,
-                Reason.of("최초 생성"));
-        when(getStatusHistoryUseCase.getHistory(orderUuid)).thenReturn(List.of(h));
+        OrderStatusHistoryView v = new OrderStatusHistoryView(
+                UUID.randomUUID(), null, OrderStatus.REQUESTED, "최초 생성");
+        when(getStatusHistoryUseCase.getHistory(orderUuid)).thenReturn(List.of(v));
 
         mockMvc.perform(get("/api/v1/admin/orders/{id}/status-history", orderUuid)
                         .with(authentication(TestAuth.adminAuth(UUID.randomUUID()))))

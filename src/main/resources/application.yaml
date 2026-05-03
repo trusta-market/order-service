@@ -2,10 +2,6 @@ spring:
   application:
     name: order-service
 
-  main:
-    # common JpaConfig 의 auditorAware 빈을 본 서비스 JpaAuditingConfig 가 override
-    allow-bean-definition-overriding: true
-
   profiles:
     default: local
 
@@ -17,6 +13,5 @@ spring:
       label: develop
       fail-fast: false
 
-trusta:
-  security:
-    trust-gateway-headers: true
+# trusta.security.trust-gateway-headers 와 spring.main.allow-bean-definition-overriding 은
+# 보안/충돌 방지를 위해 default = false 유지. local/dev 프로파일에서만 명시적으로 true 활성화.

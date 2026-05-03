@@ -1,15 +1,15 @@
 package com.trustamarket.orderservice.order.application.port.in;
 
+import com.trustamarket.orderservice.order.application.dto.result.OrderDetailView;
 import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
-import com.trustamarket.orderservice.order.domain.model.Order;
 
 import java.util.UUID;
 
-// 주문 단건 조회 — GET /api/orders/{id}
-// 권한: buyer 또는 seller 본인만 조회 가능 (ADMIN은 SearchOrders/ListOrders로 우회)
+// 주문 단건 조회 — GET /api/v1/orders/{id}
+// 권한: buyer 또는 seller 본인만 조회 가능 (ADMIN 은 SearchOrders/ListOrders 로 우회)
 public interface GetOrderUseCase {
 
-    Order getOrder(GetOrderQuery query);
+    OrderDetailView getOrder(GetOrderQuery query);
 
     record GetOrderQuery(
             UUID orderId,
