@@ -1,5 +1,6 @@
 package com.trustamarket.orderservice.order.application.service.command;
 
+import com.trustamarket.orderservice.order.adapter.out.messaging.SettlementMessagePublisher;
 import com.trustamarket.orderservice.order.application.exception.UnauthorizedOrderAccessException;
 import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUseCase.RequestPaymentCommand;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
@@ -33,6 +34,7 @@ class RequestPaymentServiceTest {
     @Mock OrderRepository orderRepository;
     @Mock OrderHistoryRecorder historyRecorder;
     @Mock WalletPaymentPort walletPaymentPort;
+    @Mock SettlementMessagePublisher settlementPublisher;
     @InjectMocks RequestPaymentService service;
 
     @Test
