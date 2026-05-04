@@ -104,7 +104,7 @@ public class OrderQueryController {
                 .map(OrderSummaryResponse::from);
     }
 
-    @GetMapping("/api/v1/admin/orders/{orderId}/status-history")
+    @GetMapping("/api/v1/admin/orders/{orderId}/status-histories")
     @PreAuthorize("hasRole('ADMIN')")
     public List<OrderStatusHistoryResponse> getStatusHistory(@PathVariable UUID orderId) {
         return getStatusHistoryUseCase.getHistory(orderId).stream()

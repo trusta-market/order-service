@@ -53,7 +53,7 @@ public class OrderCommandController {
         );
     }
 
-    @PostMapping("/api/v1/orders/{orderId}/payment")
+    @PostMapping("/api/v1/orders/{orderId}/payments")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('MEMBER')")
     public void requestPayment(@PathVariable UUID orderId) {
@@ -61,7 +61,7 @@ public class OrderCommandController {
         requestPaymentUseCase.requestPayment(new RequestPaymentCommand(orderId, buyerId));
     }
 
-    @PostMapping("/api/v1/orders/{orderId}/cancel")
+    @PostMapping("/api/v1/orders/{orderId}/cancellations")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAnyRole('MEMBER','ADMIN')")
     public void cancel(@PathVariable UUID orderId, @Valid @RequestBody CancelOrderRequest request) {
@@ -69,7 +69,7 @@ public class OrderCommandController {
         cancelOrderUseCase.cancel(request.toCommand(orderId, actorId));
     }
 
-    @PostMapping("/api/v1/orders/{orderId}/confirm")
+    @PostMapping("/api/v1/orders/{orderId}/confirmations")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('MEMBER')")
     public void confirm(@PathVariable UUID orderId) {
@@ -77,7 +77,7 @@ public class OrderCommandController {
         confirmOrderUseCase.confirm(new ConfirmOrderCommand(orderId, buyerId));
     }
 
-    @PostMapping("/api/v1/orders/{orderId}/return")
+    @PostMapping("/api/v1/orders/{orderId}/returns")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('MEMBER')")
     public void requestReturn(@PathVariable UUID orderId, @Valid @RequestBody RequestReturnRequest request) {
@@ -85,7 +85,7 @@ public class OrderCommandController {
         requestReturnUseCase.requestReturn(request.toCommand(orderId, buyerId));
     }
 
-    @PostMapping("/api/v1/admin/orders/{orderId}/return/decision")
+    @PostMapping("/api/v1/admin/orders/{orderId}/returns/decisions")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
     public void decideReturn(@PathVariable UUID orderId, @Valid @RequestBody DecideReturnRequest request) {

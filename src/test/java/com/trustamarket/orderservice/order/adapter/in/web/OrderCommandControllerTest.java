@@ -135,12 +135,12 @@ class OrderCommandControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // ─── POST /api/v1/orders/{id}/payment ───
+    // ─── POST /api/v1/orders/{id}/payments ───
 
     @Test
     @DisplayName("requestPayment — 204")
     void requestPayment_happyPath() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/payment", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/payments", orderId)
                         .with(authentication(TestAuth.memberAuth(buyerId, "구매자")))
                         .with(csrf()))
                 .andExpect(status().isNoContent());
@@ -150,7 +150,7 @@ class OrderCommandControllerTest {
     @Test
     @DisplayName("requestPayment — 인증 없음 → 401")
     void requestPayment_unauthenticated() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/payment", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/payments", orderId)
                         .with(csrf()))
                 .andExpect(status().isUnauthorized());
     }
@@ -158,18 +158,18 @@ class OrderCommandControllerTest {
     @Test
     @DisplayName("requestPayment — ADMIN 거부 → 403")
     void requestPayment_forbiddenForAdmin() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/payment", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/payments", orderId)
                         .with(authentication(TestAuth.adminAuth(UUID.randomUUID())))
                         .with(csrf()))
                 .andExpect(status().isForbidden());
     }
 
-    // ─── POST /api/v1/orders/{id}/cancel ───
+    // ─── POST /api/v1/orders/{id}/cancellations ───
 
     @Test
     @DisplayName("cancel — 204 (MEMBER)")
     void cancel_happyPath_member() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/cancel", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/cancellations", orderId)
                         .with(authentication(TestAuth.memberAuth(buyerId, "구매자")))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -181,7 +181,7 @@ class OrderCommandControllerTest {
     @Test
     @DisplayName("cancel — 204 (ADMIN 도 허용)")
     void cancel_happyPath_admin() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/cancel", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/cancellations", orderId)
                         .with(authentication(TestAuth.adminAuth(UUID.randomUUID())))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -192,7 +192,7 @@ class OrderCommandControllerTest {
     @Test
     @DisplayName("cancel — reason blank → 400")
     void cancel_blankReason() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/cancel", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/cancellations", orderId)
                         .with(authentication(TestAuth.memberAuth(buyerId, "구매자")))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -203,19 +203,19 @@ class OrderCommandControllerTest {
     @Test
     @DisplayName("cancel — 인증 없음 → 401")
     void cancel_unauthenticated() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/cancel", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/cancellations", orderId)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new CancelOrderRequest("변심"))))
                 .andExpect(status().isUnauthorized());
     }
 
-    // ─── POST /api/v1/orders/{id}/confirm ───
+    // ─── POST /api/v1/orders/{id}/confirmations ───
 
     @Test
     @DisplayName("confirm — 204")
     void confirm_happyPath() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/confirm", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/confirmations", orderId)
                         .with(authentication(TestAuth.memberAuth(buyerId, "구매자")))
                         .with(csrf()))
                 .andExpect(status().isNoContent());
@@ -225,7 +225,7 @@ class OrderCommandControllerTest {
     @Test
     @DisplayName("confirm — 인증 없음 → 401")
     void confirm_unauthenticated() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/confirm", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/confirmations", orderId)
                         .with(csrf()))
                 .andExpect(status().isUnauthorized());
     }
@@ -233,18 +233,18 @@ class OrderCommandControllerTest {
     @Test
     @DisplayName("confirm — ADMIN 거부 → 403")
     void confirm_forbiddenForAdmin() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/confirm", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/confirmations", orderId)
                         .with(authentication(TestAuth.adminAuth(UUID.randomUUID())))
                         .with(csrf()))
                 .andExpect(status().isForbidden());
     }
 
-    // ─── POST /api/v1/orders/{id}/return ───
+    // ─── POST /api/v1/orders/{id}/returns ───
 
     @Test
     @DisplayName("requestReturn — 204")
     void requestReturn_happyPath() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/return", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/returns", orderId)
                         .with(authentication(TestAuth.memberAuth(buyerId, "구매자")))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -256,7 +256,7 @@ class OrderCommandControllerTest {
     @Test
     @DisplayName("requestReturn — 인증 없음 → 401")
     void requestReturn_unauthenticated() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/return", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/returns", orderId)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new RequestReturnRequest("불량"))))
@@ -266,7 +266,7 @@ class OrderCommandControllerTest {
     @Test
     @DisplayName("requestReturn — reason blank → 400")
     void requestReturn_blankReason() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/return", orderId)
+        mockMvc.perform(post("/api/v1/orders/{id}/returns", orderId)
                         .with(authentication(TestAuth.memberAuth(buyerId, "구매자")))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -274,12 +274,12 @@ class OrderCommandControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // ─── POST /api/v1/admin/orders/{id}/return/decision ───
+    // ─── POST /api/v1/admin/orders/{id}/returns/decisions ───
 
     @Test
     @DisplayName("decideReturn — 204 (ADMIN, APPROVE)")
     void decideReturn_happyPath_approve() throws Exception {
-        mockMvc.perform(post("/api/v1/admin/orders/{id}/return/decision", orderId)
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/returns/decisions", orderId)
                         .with(authentication(TestAuth.adminAuth(UUID.randomUUID())))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -292,7 +292,7 @@ class OrderCommandControllerTest {
     @Test
     @DisplayName("decideReturn — 204 (ADMIN, REJECT + reason)")
     void decideReturn_happyPath_reject() throws Exception {
-        mockMvc.perform(post("/api/v1/admin/orders/{id}/return/decision", orderId)
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/returns/decisions", orderId)
                         .with(authentication(TestAuth.adminAuth(UUID.randomUUID())))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -304,7 +304,7 @@ class OrderCommandControllerTest {
     @Test
     @DisplayName("decideReturn — MEMBER 거부 → 403")
     void decideReturn_forbiddenForMember() throws Exception {
-        mockMvc.perform(post("/api/v1/admin/orders/{id}/return/decision", orderId)
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/returns/decisions", orderId)
                         .with(authentication(TestAuth.memberAuth(buyerId, "구매자")))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -316,7 +316,7 @@ class OrderCommandControllerTest {
     @Test
     @DisplayName("decideReturn — 인증 없음 → 401")
     void decideReturn_unauthenticated() throws Exception {
-        mockMvc.perform(post("/api/v1/admin/orders/{id}/return/decision", orderId)
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/returns/decisions", orderId)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
