@@ -249,7 +249,7 @@ class OrderQueryControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // ─── GET /api/v1/admin/orders/{id}/status-history ───
+    // ─── GET /api/v1/admin/orders/{id}/status-histories ───
 
     @Test
     @DisplayName("getStatusHistory — 200 (ADMIN)")
@@ -258,7 +258,7 @@ class OrderQueryControllerTest {
                 UUID.randomUUID(), null, OrderStatus.REQUESTED, "최초 생성");
         when(getStatusHistoryUseCase.getHistory(orderUuid)).thenReturn(List.of(v));
 
-        mockMvc.perform(get("/api/v1/admin/orders/{id}/status-history", orderUuid)
+        mockMvc.perform(get("/api/v1/admin/orders/{id}/status-histories", orderUuid)
                         .with(authentication(TestAuth.adminAuth(UUID.randomUUID()))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isArray())
@@ -268,7 +268,7 @@ class OrderQueryControllerTest {
     @Test
     @DisplayName("getStatusHistory — MEMBER 거부 → 403")
     void getStatusHistory_forbiddenForMember() throws Exception {
-        mockMvc.perform(get("/api/v1/admin/orders/{id}/status-history", orderUuid)
+        mockMvc.perform(get("/api/v1/admin/orders/{id}/status-histories", orderUuid)
                         .with(authentication(TestAuth.memberAuth(memberUuid, "구매자"))))
                 .andExpect(status().isForbidden());
     }
@@ -276,7 +276,7 @@ class OrderQueryControllerTest {
     @Test
     @DisplayName("getStatusHistory — 인증 없음 → 401")
     void getStatusHistory_unauthenticated() throws Exception {
-        mockMvc.perform(get("/api/v1/admin/orders/{id}/status-history", orderUuid))
+        mockMvc.perform(get("/api/v1/admin/orders/{id}/status-histories", orderUuid))
                 .andExpect(status().isUnauthorized());
     }
 }
