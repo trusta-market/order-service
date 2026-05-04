@@ -2,6 +2,7 @@ package com.trustamarket.orderservice.order.application.service.command;
 
 import com.trustamarket.orderservice.order.application.port.in.ConfirmOrderUseCase;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
+import com.trustamarket.orderservice.order.application.port.out.ProductSoldOutMessagePort;
 import com.trustamarket.orderservice.order.application.port.out.SettlementMessagePort;
 import com.trustamarket.orderservice.order.application.service.support.OrderAccessGuard;
 import com.trustamarket.orderservice.order.application.service.support.OrderHistoryRecorder;
@@ -23,6 +24,7 @@ public class ConfirmOrderService implements ConfirmOrderUseCase {
     private final OrderRepository orderRepository;
     private final OrderHistoryRecorder historyRecorder;
     private final SettlementMessagePort settlementPublisher;
+    private final ProductSoldOutMessagePort productSoldOutPublisher;
 
     @Override
     @Transactional
@@ -38,5 +40,8 @@ public class ConfirmOrderService implements ConfirmOrderUseCase {
 
         // 정산 트리거 — 구매 확정 직후. wallet-service 의 PointSettlementListener 가 escrow→seller+fee 분배.
         settlementPublisher.publishForPaidOrder(order);
+
+        // product 도메인에 판매완료 신호 — product-service 의 ProductSoldOutListener 가 status SOLD_OUT 으로 전이.
+        productSoldOutPublisher.publishForConfirmedOrder(order);
     }
 }

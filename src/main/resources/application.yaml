@@ -27,3 +27,4 @@ trusta:
   messaging:
     topic:
       settlement-requested: order.wallet-settlement.requested
+      product-sold-out:    order.product.sold-out
