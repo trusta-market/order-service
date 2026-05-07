@@ -1,5 +1,8 @@
 package com.trustamarket.orderservice.order.application.service.command;
 
+import com.trustamarket.orderservice.order.adapter.out.persistence.inbox.InboxJpaEntity;
+import com.trustamarket.orderservice.order.adapter.out.persistence.inbox.InboxJpaRepository;
+import com.trustamarket.orderservice.order.adapter.out.persistence.inbox.InboxPurpose;
 import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUseCase;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort;
@@ -25,10 +28,18 @@ public class RequestPaymentService implements RequestPaymentUseCase {
     private final OrderRepository orderRepository;
     private final OrderHistoryRecorder historyRecorder;
     private final WalletPaymentPort walletPaymentPort;
+    private final InboxJpaRepository inboxRepository;
 
     @Override
     @Transactional
     public void requestPayment(RequestPaymentCommand cmd) {
+        // 멱등성 체크 — 동일 Idempotency-Key 로 이미 처리됐으면 no-op (재시도 시 중복 결제 차단).
+        // (#11) PR #9 리뷰에서 합의된 spec.
+        if (cmd.idempotencyKey() != null && !cmd.idempotencyKey().isBlank()
+                && inboxRepository.findByIdempotencyKey(cmd.idempotencyKey()).isPresent()) {
+            return;
+        }
+
         Order order = orderRepository.findByIdOrThrow(OrderId.of(cmd.orderId()));
         OrderAccessGuard.verifyBuyer(order, cmd.buyerId());
 
@@ -51,6 +62,12 @@ public class RequestPaymentService implements RequestPaymentUseCase {
         historyRecorder.record(order.getId(), prePaid, order.getStatus(), null);
 
         orderRepository.save(order);
+
+        // 멱등성 키 기록 — 같은 트랜잭션에 묶임 (커밋 후 동일 키 재호출 시 위 체크로 short-circuit).
+        if (cmd.idempotencyKey() != null && !cmd.idempotencyKey().isBlank()) {
+            inboxRepository.save(InboxJpaEntity.forIdempotencyKey(
+                    cmd.idempotencyKey(), InboxPurpose.REQUEST_PAYMENT, null));
+        }
         // 정산 발행은 ConfirmOrderService 로 이동 (정공 시점 — 구매 확정 후 분배)
     }
 

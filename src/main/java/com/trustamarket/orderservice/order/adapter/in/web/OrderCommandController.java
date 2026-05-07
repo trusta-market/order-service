@@ -22,6 +22,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -56,9 +57,12 @@ public class OrderCommandController {
     @PostMapping("/api/v1/orders/{orderId}/payments")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('MEMBER')")
-    public void requestPayment(@PathVariable UUID orderId) {
+    public void requestPayment(
+            @PathVariable UUID orderId,
+            @RequestHeader("Idempotency-Key") String idempotencyKey
+    ) {
         UUID buyerId = SecurityUtil.getCurrentUserIdOrThrow();
-        requestPaymentUseCase.requestPayment(new RequestPaymentCommand(orderId, buyerId));
+        requestPaymentUseCase.requestPayment(new RequestPaymentCommand(orderId, buyerId, idempotencyKey));
     }
 
     @PostMapping("/api/v1/orders/{orderId}/cancellations")

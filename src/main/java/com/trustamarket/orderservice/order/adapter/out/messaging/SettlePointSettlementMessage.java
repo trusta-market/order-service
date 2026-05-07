@@ -1,5 +1,7 @@
 package com.trustamarket.orderservice.order.adapter.out.messaging;
 
+import com.trustamarket.orderservice.order.domain.model.Order;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -17,4 +19,19 @@ public record SettlePointSettlementMessage(
         long    shippingFee,
         long    totalAmount,
         Instant orderConfirmedAt
-) {}
+) {
+    public static SettlePointSettlementMessage from(Order order) {
+        return new SettlePointSettlementMessage(
+                UUID.randomUUID(),
+                order.getId().value(),
+                order.getBuyer().id(),
+                order.getSeller().id(),
+                order.getProduct().id(),
+                order.getProduct().name(),
+                order.getProduct().price().value(),
+                order.getShippingFee().value(),
+                order.getTotalAmount().value(),
+                Instant.now()
+        );
+    }
+}

@@ -3,3 +3,7 @@ databaseChangeLog:
       file: db/changelog/001-create-p-order.yaml
   - include:
       file: db/changelog/002-create-p-order-status-history.yaml
+  - include:
+      file: db/changelog/003-create-p-order-outbox.yaml
+  - include:
+      file: db/changelog/004-create-p-order-inbox.yaml

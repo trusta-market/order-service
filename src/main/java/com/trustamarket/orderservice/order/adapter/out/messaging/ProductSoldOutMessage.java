@@ -1,5 +1,7 @@
 package com.trustamarket.orderservice.order.adapter.out.messaging;
 
+import com.trustamarket.orderservice.order.domain.model.Order;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -10,4 +12,13 @@ public record ProductSoldOutMessage(
         UUID orderId,
         UUID productId,
         Instant soldAt
-) {}
+) {
+    public static ProductSoldOutMessage from(Order order) {
+        return new ProductSoldOutMessage(
+                UUID.randomUUID(),
+                order.getId().value(),
+                order.getProduct().id(),
+                Instant.now()
+        );
+    }
+}
