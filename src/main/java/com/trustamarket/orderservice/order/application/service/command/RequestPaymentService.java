@@ -35,8 +35,9 @@ public class RequestPaymentService implements RequestPaymentUseCase {
     @Override
     @Transactional
     public void requestPayment(RequestPaymentCommand cmd) {
-        // 멱등성 체크 — 동일 (idempotency_key, REQUEST_PAYMENT) 로 이미 처리됐으면 no-op.
-        if (inboxRepository.existsByIdempotencyKey(cmd.idempotencyKey(), InboxPurposeKey.REQUEST_PAYMENT)) {
+        // 멱등성 — atomic INSERT 시도. 이미 처리된 키면 false 반환 → no-op.
+        // (REQUIRES_NEW 트랜잭션이라 충돌 시 부모 트랜잭션 영향 없음.)
+        if (!inboxRepository.tryRecordIdempotencyKey(cmd.idempotencyKey(), InboxPurposeKey.REQUEST_PAYMENT)) {
             return;
         }
 
@@ -62,9 +63,10 @@ public class RequestPaymentService implements RequestPaymentUseCase {
         historyRecorder.record(order.getId(), prePaid, order.getStatus(), null);
 
         orderRepository.save(order);
-
-        // 멱등성 키 기록 — 같은 트랜잭션에 묶임 (commit 후 동일 키 재호출 시 위 체크로 short-circuit).
-        inboxRepository.recordIdempotencyKey(cmd.idempotencyKey(), InboxPurposeKey.REQUEST_PAYMENT);
+        // 멱등성 키는 진입부 tryRecordIdempotencyKey 에서 이미 INSERT 됨.
+        // 본 트랜잭션이 rollback 되면 inbox 도 같이 rollback 되어야 하는데, REQUIRES_NEW 라 분리됨 →
+        // wallet 차감 실패 등으로 이 메서드가 throw 시 inbox 만 남는 케이스 발생 가능.
+        // 트레이드오프: TOCTOU race 차단을 우선. 잔여 inbox row 는 결과 없이 멱등성 키만 점유 → 동일 키 재시도 시 단순 no-op (의도된 동작).
         // 정산 발행은 ConfirmOrderService 로 이동 (구매 확정 후 분배).
     }
 

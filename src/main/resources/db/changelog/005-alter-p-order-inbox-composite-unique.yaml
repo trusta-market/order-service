@@ -13,3 +13,13 @@ databaseChangeLog:
             tableName: p_order_inbox
             columnNames: idempotency_key, purpose
             constraintName: uq_p_order_inbox_idempotency_key_purpose
+
+      # 명시적 rollback — 운영 중 changeSet 되돌릴 때 단일 컬럼 UNIQUE 복원.
+      rollback:
+        - dropUniqueConstraint:
+            tableName: p_order_inbox
+            constraintName: uq_p_order_inbox_idempotency_key_purpose
+        - addUniqueConstraint:
+            tableName: p_order_inbox
+            columnNames: idempotency_key
+            constraintName: uq_p_order_inbox_idempotency_key

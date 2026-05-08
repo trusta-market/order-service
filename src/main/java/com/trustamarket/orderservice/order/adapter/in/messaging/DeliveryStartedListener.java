@@ -5,9 +5,9 @@ import com.trustamarket.orderservice.order.adapter.in.messaging.dto.DeliveryStar
 import com.trustamarket.orderservice.order.application.port.in.MarkOrderShippedUseCase;
 import com.trustamarket.orderservice.order.application.port.out.InboxRepository;
 import com.trustamarket.orderservice.order.application.port.out.InboxRepository.InboxPurposeKey;
+import com.trustamarket.orderservice.order.domain.exception.OrderException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -45,7 +45,8 @@ public class DeliveryStartedListener {
             return;
         }
 
-        if (inboxRepository.existsByKafkaEvent(message.eventId(), CONSUMER_GROUP)) {
+        // 멱등성 — atomic INSERT 시도. 이미 처리된 메시지면 false → ack + skip.
+        if (!inboxRepository.tryRecordKafkaEvent(message.eventId(), CONSUMER_GROUP, InboxPurposeKey.DELIVERY_STARTED)) {
             log.info("[DeliveryStarted] 중복 메시지 — ack + skip. eventId={}, orderId={}",
                     message.eventId(), message.orderId());
             ack.acknowledge();
@@ -55,17 +56,11 @@ public class DeliveryStartedListener {
         try {
             log.info("[DeliveryStarted] consume — eventId={}, orderId={}", message.eventId(), message.orderId());
             markOrderShippedUseCase.markShipped(message.orderId());
-            inboxRepository.recordKafkaEvent(message.eventId(), CONSUMER_GROUP, InboxPurposeKey.DELIVERY_STARTED);
             ackAfterCommit(ack);
-        } catch (com.trustamarket.orderservice.order.domain.exception.OrderException e) {
+        } catch (OrderException e) {
             // 비즈니스 예외 (Order not found / Invalid transition) — 재시도해도 동일 결과. 즉시 ack + skip.
             log.warn("[DeliveryStarted] non-retryable, ack + skip — eventId={}, orderId={}",
                     message.eventId(), message.orderId(), e);
-            ack.acknowledge();
-        } catch (DataIntegrityViolationException e) {
-            // (event_id, consumer_group) UNIQUE 위반 — 리밸런싱 등으로 동일 메시지가 중복 처리됨. 즉시 ack + skip.
-            log.warn("[DeliveryStarted] 중복 inbox 저장 시도 — ack + skip. eventId={}, orderId={}",
-                    message.eventId(), message.orderId());
             ack.acknowledge();
         } catch (Exception e) {
             // 통신/일시 오류 — ack 안 함 → 재시도. 영구 실패 시 향후 DLT.

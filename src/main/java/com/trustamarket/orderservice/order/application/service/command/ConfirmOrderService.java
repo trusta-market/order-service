@@ -2,6 +2,7 @@ package com.trustamarket.orderservice.order.application.service.command;
 
 import com.trustamarket.common.event.Events;
 import com.trustamarket.common.event.OutboxEvent;
+import com.trustamarket.orderservice.order.adapter.out.messaging.outbox.OutboxEventListener;
 import com.trustamarket.orderservice.order.application.event.messaging.ProductSoldOutMessage;
 import com.trustamarket.orderservice.order.application.event.messaging.SettlePointSettlementMessage;
 import com.trustamarket.orderservice.order.application.port.in.ConfirmOrderUseCase;
@@ -47,7 +48,7 @@ public class ConfirmOrderService implements ConfirmOrderUseCase {
         // 메시지 record 는 application/event/messaging/ — adapter 의존 차단을 위해 primitive factory 사용.
         Events.trigger(OutboxEvent.of(
                 DOMAIN_TYPE, order.getId().value(),
-                "ORDER.SETTLEMENT_REQUESTED",
+                OutboxEventListener.EVENT_SETTLEMENT_REQUESTED,
                 SettlePointSettlementMessage.of(
                         order.getId().value(),
                         order.getBuyer().id(),
@@ -61,7 +62,7 @@ public class ConfirmOrderService implements ConfirmOrderUseCase {
 
         Events.trigger(OutboxEvent.of(
                 DOMAIN_TYPE, order.getId().value(),
-                "ORDER.PRODUCT_SOLD_OUT",
+                OutboxEventListener.EVENT_PRODUCT_SOLD_OUT,
                 ProductSoldOutMessage.of(
                         order.getId().value(),
                         order.getProduct().id(),

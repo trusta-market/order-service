@@ -8,7 +8,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -50,7 +49,7 @@ public class InboxJpaEntity extends BaseCreatedEntity {
     @Column(name = "result_snapshot", columnDefinition = "jsonb", updatable = false)
     private String resultSnapshot;
 
-    @Builder
+    // private 생성자 — 정적 팩토리만 통해서 entity 생성 가능. Builder 우회 차단.
     private InboxJpaEntity(UUID id, String idempotencyKey, UUID eventId,
                            String consumerGroup, InboxPurpose purpose, String resultSnapshot) {
         this.id = id;
@@ -62,7 +61,6 @@ public class InboxJpaEntity extends BaseCreatedEntity {
     }
 
     // 외부 호출 멱등성 record 생성 (POST /payments 의 Idempotency-Key 흐름).
-    // NOT NULL 컬럼 필드 (idempotencyKey, purpose) 는 builder 진입 전 가드 — 늦은 DB 오류 차단.
     public static InboxJpaEntity forIdempotencyKey(String idempotencyKey, InboxPurpose purpose,
                                                    String resultSnapshot) {
         Objects.requireNonNull(idempotencyKey, "idempotencyKey must not be null");
@@ -70,12 +68,7 @@ public class InboxJpaEntity extends BaseCreatedEntity {
         if (idempotencyKey.isBlank()) {
             throw new IllegalArgumentException("idempotencyKey must not be blank");
         }
-        return InboxJpaEntity.builder()
-                .id(UUID.randomUUID())
-                .idempotencyKey(idempotencyKey)
-                .purpose(purpose)
-                .resultSnapshot(resultSnapshot)
-                .build();
+        return new InboxJpaEntity(UUID.randomUUID(), idempotencyKey, null, null, purpose, resultSnapshot);
     }
 
     // Kafka 메시지 멱등성 record 생성 (delivery consumer 흐름).
@@ -83,11 +76,9 @@ public class InboxJpaEntity extends BaseCreatedEntity {
         Objects.requireNonNull(eventId, "eventId must not be null");
         Objects.requireNonNull(consumerGroup, "consumerGroup must not be null");
         Objects.requireNonNull(purpose, "purpose must not be null");
-        return InboxJpaEntity.builder()
-                .id(UUID.randomUUID())
-                .eventId(eventId)
-                .consumerGroup(consumerGroup)
-                .purpose(purpose)
-                .build();
+        if (consumerGroup.isBlank()) {
+            throw new IllegalArgumentException("consumerGroup must not be blank");
+        }
+        return new InboxJpaEntity(UUID.randomUUID(), null, eventId, consumerGroup, purpose, null);
     }
 }
