@@ -1,4 +1,4 @@
-package com.trustamarket.orderservice.order.adapter.out.messaging.outbox;
+package com.trustamarket.orderservice.order.adapter.out.persistence.outbox;
 
 import com.trustamarket.common.domain.BaseCreatedEntity;
 import jakarta.persistence.Column;
@@ -18,9 +18,12 @@ import java.time.Instant;
 import java.util.UUID;
 
 // p_order_outbox — 발행 대기 중인 메시지 큐.
-// listener 가 INSERT (PENDING), poller 가 PUBLISHED 마킹.
+// 상태 전이: PENDING → IN_PROGRESS → PUBLISHED (또는 FAILED)
+//   - PENDING: listener 가 INSERT 직후
+//   - IN_PROGRESS: poller 가 claim (락 보유 시간 최소화 — Kafka publish 는 트랜잭션 밖)
+//   - PUBLISHED: publish 성공 + 마킹 완료
+//   - FAILED: retry 5회 도달 (운영 알림은 후속 작업)
 // payload 는 jsonb — Jackson 으로 직렬화된 메시지 본문.
-// createdAt 은 BaseCreatedEntity 가 자동 채움. published_at 은 마킹 시점으로 자체 관리.
 @Entity
 @Table(name = "p_order_outbox")
 @Getter
@@ -46,7 +49,6 @@ public class OutboxJpaEntity extends BaseCreatedEntity {
     @Column(name = "topic", nullable = false, updatable = false, length = 100)
     private String topic;
 
-    // jsonb — Jackson 직렬화된 메시지 본문 (record JSON 그대로).
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload", nullable = false, updatable = false, columnDefinition = "jsonb")
     private String payload;
@@ -78,18 +80,27 @@ public class OutboxJpaEntity extends BaseCreatedEntity {
         this.retryCount = 0;
     }
 
-    // poller 가 발행 성공 시 호출.
+    // claim 단계 — poller 가 PENDING 행을 fetch 직후 호출.
+    // IN_PROGRESS 마킹과 동시에 트랜잭션 commit → DB 락 해제 → Kafka publish 는 트랜잭션 밖에서 진행.
+    public void markInProgress() {
+        this.status = OutboxStatus.IN_PROGRESS;
+    }
+
+    // Kafka publish 성공 시 호출 (별도 트랜잭션).
     public void markPublished() {
         this.status = OutboxStatus.PUBLISHED;
         this.publishedAt = Instant.now();
     }
 
-    // poller 가 발행 실패 시 호출. retry 5회 도달 시 FAILED 로 종결.
+    // Kafka publish 실패 시 호출. retry 5회 도달 시 FAILED.
+    // FAILED 로 가지 않으면 PENDING 으로 되돌려서 다음 polling 에서 재시도.
     public void recordFailure(String error, int maxRetries) {
         this.retryCount += 1;
         this.lastError = error;
         if (this.retryCount >= maxRetries) {
             this.status = OutboxStatus.FAILED;
+        } else {
+            this.status = OutboxStatus.PENDING;   // 재시도 위해 다시 PENDING
         }
     }
 }

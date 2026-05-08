@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.util.Objects;
 import java.util.UUID;
 
 // p_order_inbox — 외부 호출 / Kafka 메시지의 멱등성 처리용.
@@ -61,8 +62,14 @@ public class InboxJpaEntity extends BaseCreatedEntity {
     }
 
     // 외부 호출 멱등성 record 생성 (POST /payments 의 Idempotency-Key 흐름).
+    // NOT NULL 컬럼 필드 (idempotencyKey, purpose) 는 builder 진입 전 가드 — 늦은 DB 오류 차단.
     public static InboxJpaEntity forIdempotencyKey(String idempotencyKey, InboxPurpose purpose,
                                                    String resultSnapshot) {
+        Objects.requireNonNull(idempotencyKey, "idempotencyKey must not be null");
+        Objects.requireNonNull(purpose, "purpose must not be null");
+        if (idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException("idempotencyKey must not be blank");
+        }
         return InboxJpaEntity.builder()
                 .id(UUID.randomUUID())
                 .idempotencyKey(idempotencyKey)
@@ -73,6 +80,9 @@ public class InboxJpaEntity extends BaseCreatedEntity {
 
     // Kafka 메시지 멱등성 record 생성 (delivery consumer 흐름).
     public static InboxJpaEntity forKafkaEvent(UUID eventId, String consumerGroup, InboxPurpose purpose) {
+        Objects.requireNonNull(eventId, "eventId must not be null");
+        Objects.requireNonNull(consumerGroup, "consumerGroup must not be null");
+        Objects.requireNonNull(purpose, "purpose must not be null");
         return InboxJpaEntity.builder()
                 .id(UUID.randomUUID())
                 .eventId(eventId)

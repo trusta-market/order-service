@@ -1,13 +1,13 @@
-package com.trustamarket.orderservice.order.adapter.out.messaging;
-
-import com.trustamarket.orderservice.order.domain.model.Order;
+package com.trustamarket.orderservice.order.application.event.messaging;
 
 import java.time.Instant;
 import java.util.UUID;
 
 // wallet-service `order.wallet-settlement.requested` 토픽 컨슈머의 payload 와 시그니처 매칭.
 // 필드 이름/순서/타입 변경 시 양쪽 동시 수정 필요 (스키마 계약).
-// productName 은 wallet/settlement 측 향후 spec 에 포함 예정 — 미리 발행 (consumer 가 unknown 필드면 무시).
+//
+// 위치: application/event/messaging — outbound adapter 가 도메인 객체 직접 의존하지 않게 application 레이어 record 로 둠.
+// factory 시그니처는 primitive — 도메인 의존 차단.
 public record SettlePointSettlementMessage(
         UUID    eventId,           // 멱등성 키 — wallet 측 existsByEventId 로 중복 차단
         UUID    orderId,
@@ -20,18 +20,22 @@ public record SettlePointSettlementMessage(
         long    totalAmount,
         Instant orderConfirmedAt
 ) {
-    public static SettlePointSettlementMessage from(Order order) {
+    public static SettlePointSettlementMessage of(
+            UUID orderId,
+            UUID buyerId,
+            UUID sellerId,
+            UUID productId,
+            String productName,
+            long productPrice,
+            long shippingFee,
+            long totalAmount,
+            Instant orderConfirmedAt
+    ) {
         return new SettlePointSettlementMessage(
                 UUID.randomUUID(),
-                order.getId().value(),
-                order.getBuyer().id(),
-                order.getSeller().id(),
-                order.getProduct().id(),
-                order.getProduct().name(),
-                order.getProduct().price().value(),
-                order.getShippingFee().value(),
-                order.getTotalAmount().value(),
-                Instant.now()
+                orderId, buyerId, sellerId, productId,
+                productName, productPrice, shippingFee, totalAmount,
+                orderConfirmedAt
         );
     }
 }

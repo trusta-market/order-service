@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-alter-p-order-inbox-composite-unique
+      author: lhk
+      changes:
+        # 기존 idempotency_key 단일 UNIQUE 제거 (purpose 가 다른 흐름에서 키 재사용 가능하도록)
+        - dropUniqueConstraint:
+            tableName: p_order_inbox
+            constraintName: uq_p_order_inbox_idempotency_key
+
+        # (idempotency_key, purpose) composite UNIQUE — purpose 별 dedup
+        - addUniqueConstraint:
+            tableName: p_order_inbox
+            columnNames: idempotency_key, purpose
+            constraintName: uq_p_order_inbox_idempotency_key_purpose

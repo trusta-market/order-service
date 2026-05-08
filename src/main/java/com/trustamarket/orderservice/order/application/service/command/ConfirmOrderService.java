@@ -2,8 +2,8 @@ package com.trustamarket.orderservice.order.application.service.command;
 
 import com.trustamarket.common.event.Events;
 import com.trustamarket.common.event.OutboxEvent;
-import com.trustamarket.orderservice.order.adapter.out.messaging.ProductSoldOutMessage;
-import com.trustamarket.orderservice.order.adapter.out.messaging.SettlePointSettlementMessage;
+import com.trustamarket.orderservice.order.application.event.messaging.ProductSoldOutMessage;
+import com.trustamarket.orderservice.order.application.event.messaging.SettlePointSettlementMessage;
 import com.trustamarket.orderservice.order.application.port.in.ConfirmOrderUseCase;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
 import com.trustamarket.orderservice.order.application.service.support.OrderAccessGuard;
@@ -17,11 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 
-// DELIVERED → CONFIRMED 정공 흐름. confirm 직후 두 이벤트 발행:
+// DELIVERED → CONFIRMED. confirm 직후 두 이벤트 발행:
 //   - ORDER.SETTLEMENT_REQUESTED → wallet 정산 (escrow → seller + 수수료)
 //   - ORDER.PRODUCT_SOLD_OUT     → product status SOLD_OUT 전이
 // 발행은 common 의 Outbox facade (Events.trigger) 사용 — DB ↔ Kafka 일관성 보장.
-// (이전: KafkaTemplate.send 직접 호출. PR #21 에서 Outbox 전환)
 @Service
 @RequiredArgsConstructor
 public class ConfirmOrderService implements ConfirmOrderUseCase {
@@ -38,20 +37,34 @@ public class ConfirmOrderService implements ConfirmOrderUseCase {
         OrderAccessGuard.verifyBuyer(order, cmd.buyerId());
 
         OrderStatus pre = order.getStatus();
-        order.confirm(Instant.now());
+        Instant confirmedAt = Instant.now();
+        order.confirm(confirmedAt);
         historyRecorder.record(order.getId(), pre, order.getStatus(), null);
 
         orderRepository.save(order);
 
         // Outbox 발행 — BEFORE_COMMIT listener 가 받아서 outbox INSERT, poller 가 Kafka publish.
+        // 메시지 record 는 application/event/messaging/ — adapter 의존 차단을 위해 primitive factory 사용.
         Events.trigger(OutboxEvent.of(
                 DOMAIN_TYPE, order.getId().value(),
                 "ORDER.SETTLEMENT_REQUESTED",
-                SettlePointSettlementMessage.from(order)));
+                SettlePointSettlementMessage.of(
+                        order.getId().value(),
+                        order.getBuyer().id(),
+                        order.getSeller().id(),
+                        order.getProduct().id(),
+                        order.getProduct().name(),
+                        order.getProduct().price().value(),
+                        order.getShippingFee().value(),
+                        order.getTotalAmount().value(),
+                        confirmedAt)));
 
         Events.trigger(OutboxEvent.of(
                 DOMAIN_TYPE, order.getId().value(),
                 "ORDER.PRODUCT_SOLD_OUT",
-                ProductSoldOutMessage.from(order)));
+                ProductSoldOutMessage.of(
+                        order.getId().value(),
+                        order.getProduct().id(),
+                        confirmedAt)));
     }
 }

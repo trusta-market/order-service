@@ -61,6 +61,8 @@ class ConfirmOrderServiceTest {
         ).isInstanceOf(com.trustamarket.orderservice.order.domain.exception.InvalidStatusTransitionException.class);
 
         verify(orderRepository, never()).save(any(Order.class));
+        // 예외 발생 전에 history 가 기록되는 회귀 차단
+        verify(historyRecorder, never()).record(any(), any(), any(), eq(null));
     }
 
     @Test

@@ -7,3 +7,5 @@ databaseChangeLog:
       file: db/changelog/003-create-p-order-outbox.yaml
   - include:
       file: db/changelog/004-create-p-order-inbox.yaml
+  - include:
+      file: db/changelog/005-alter-p-order-inbox-composite-unique.yaml

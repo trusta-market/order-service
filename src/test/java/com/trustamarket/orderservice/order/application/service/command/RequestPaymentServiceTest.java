@@ -1,9 +1,9 @@
 package com.trustamarket.orderservice.order.application.service.command;
 
-import com.trustamarket.orderservice.order.adapter.out.persistence.inbox.InboxJpaEntity;
-import com.trustamarket.orderservice.order.adapter.out.persistence.inbox.InboxJpaRepository;
 import com.trustamarket.orderservice.order.application.exception.UnauthorizedOrderAccessException;
 import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUseCase.RequestPaymentCommand;
+import com.trustamarket.orderservice.order.application.port.out.InboxRepository;
+import com.trustamarket.orderservice.order.application.port.out.InboxRepository.InboxPurposeKey;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort.DeductPointResponse;
@@ -19,12 +19,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,7 +35,7 @@ class RequestPaymentServiceTest {
     @Mock OrderRepository orderRepository;
     @Mock OrderHistoryRecorder historyRecorder;
     @Mock WalletPaymentPort walletPaymentPort;
-    @Mock InboxJpaRepository inboxRepository;
+    @Mock InboxRepository inboxRepository;
     @InjectMocks RequestPaymentService service;
 
     @Test
@@ -44,7 +44,7 @@ class RequestPaymentServiceTest {
         UUID buyerId = UUID.randomUUID();
         String idempotencyKey = UUID.randomUUID().toString();
         Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
-        when(inboxRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
+        when(inboxRepository.existsByIdempotencyKey(idempotencyKey, InboxPurposeKey.REQUEST_PAYMENT)).thenReturn(false);
         when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
         when(walletPaymentPort.deduct(any())).thenReturn(new DeductPointResponse(50_000L, null));
 
@@ -54,7 +54,7 @@ class RequestPaymentServiceTest {
         verify(historyRecorder).record(order.getId(), OrderStatus.REQUESTED, OrderStatus.PAYMENT_PENDING, null);
         verify(historyRecorder).record(order.getId(), OrderStatus.PAYMENT_PENDING, OrderStatus.PAID, null);
         verify(orderRepository).save(order);
-        verify(inboxRepository).save(any(InboxJpaEntity.class));
+        verify(inboxRepository).recordIdempotencyKey(idempotencyKey, InboxPurposeKey.REQUEST_PAYMENT);
     }
 
     @Test
@@ -62,14 +62,14 @@ class RequestPaymentServiceTest {
     void duplicateIdempotencyKey() {
         UUID buyerId = UUID.randomUUID();
         String idempotencyKey = UUID.randomUUID().toString();
-        when(inboxRepository.findByIdempotencyKey(idempotencyKey))
-                .thenReturn(Optional.of(InboxJpaEntity.forIdempotencyKey(idempotencyKey, null, null)));
+        when(inboxRepository.existsByIdempotencyKey(idempotencyKey, InboxPurposeKey.REQUEST_PAYMENT)).thenReturn(true);
 
         service.requestPayment(new RequestPaymentCommand(UUID.randomUUID(), buyerId, idempotencyKey));
 
         verify(orderRepository, never()).findByIdOrThrow(any());
         verify(walletPaymentPort, never()).deduct(any());
         verify(orderRepository, never()).save(any());
+        verify(inboxRepository, never()).recordIdempotencyKey(any(), any());
     }
 
     @Test
@@ -78,7 +78,7 @@ class RequestPaymentServiceTest {
         UUID buyerId = UUID.randomUUID();
         String idempotencyKey = UUID.randomUUID().toString();
         Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
-        when(inboxRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
+        when(inboxRepository.existsByIdempotencyKey(idempotencyKey, InboxPurposeKey.REQUEST_PAYMENT)).thenReturn(false);
         when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
         when(walletPaymentPort.deduct(any())).thenReturn(new DeductPointResponse(5_000L, 98_000L));
 
@@ -96,7 +96,7 @@ class RequestPaymentServiceTest {
         UUID strangerId = UUID.randomUUID();
         String idempotencyKey = UUID.randomUUID().toString();
         Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
-        when(inboxRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
+        when(inboxRepository.existsByIdempotencyKey(idempotencyKey, InboxPurposeKey.REQUEST_PAYMENT)).thenReturn(false);
         when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
 
         assertThatThrownBy(() ->
@@ -107,5 +107,18 @@ class RequestPaymentServiceTest {
         verify(walletPaymentPort, never()).deduct(any());
         verify(historyRecorder, never()).record(any(), any(), any(), any());
         verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Idempotency-Key blank → InvalidIdException (compact constructor)")
+    void blankIdempotencyKey() {
+        UUID buyerId = UUID.randomUUID();
+        UUID orderId = UUID.randomUUID();
+        assertThatThrownBy(() ->
+                new RequestPaymentCommand(orderId, buyerId, "  ")
+        ).isInstanceOf(com.trustamarket.orderservice.order.domain.exception.InvalidIdException.class);
+        assertThatThrownBy(() ->
+                new RequestPaymentCommand(orderId, buyerId, null)
+        ).isInstanceOf(com.trustamarket.orderservice.order.domain.exception.InvalidIdException.class);
     }
 }
