@@ -1,0 +1,73 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-p-order-inbox
+      author: lhk
+      changes:
+        - createTable:
+            tableName: p_order_inbox
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              # 외부 호출 멱등성 키 (POST /payments 의 Idempotency-Key 헤더). nullable.
+              - column:
+                  name: idempotency_key
+                  type: varchar(100)
+
+              # Kafka 메시지 멱등성 (delivery consumer 등). nullable.
+              - column:
+                  name: event_id
+                  type: uuid
+
+              # 컨슈머 그룹 식별자 (advice 도입 후 (event_id, consumer_group) UNIQUE 활용).
+              - column:
+                  name: consumer_group
+                  type: varchar(50)
+
+              # 레코드 용도 — REQUEST_PAYMENT / DELIVERY_STARTED / DELIVERY_COMPLETED ...
+              - column:
+                  name: purpose
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+
+              # 동일 키 재시도 시 반환할 결과 (HTTP 응답 본문 등). nullable.
+              - column:
+                  name: result_snapshot
+                  type: jsonb
+
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+
+        # 외부 호출 idempotency key UNIQUE — NULL 다중 허용
+        - addUniqueConstraint:
+            tableName: p_order_inbox
+            columnNames: idempotency_key
+            constraintName: uq_p_order_inbox_idempotency_key
+
+        # consumer 측 (event_id, consumer_group) UNIQUE — 중복 메시지 차단
+        - addUniqueConstraint:
+            tableName: p_order_inbox
+            columnNames: event_id, consumer_group
+            constraintName: uq_p_order_inbox_event_id_consumer_group
+
+        - createIndex:
+            tableName: p_order_inbox
+            indexName: idx_p_order_inbox_idempotency_key
+            columns:
+              - column:
+                  name: idempotency_key
+
+        - createIndex:
+            tableName: p_order_inbox
+            indexName: idx_p_order_inbox_event_id
+            columns:
+              - column:
+                  name: event_id

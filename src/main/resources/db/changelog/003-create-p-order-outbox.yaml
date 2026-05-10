@@ -1,0 +1,88 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-p-order-outbox
+      author: lhk
+      changes:
+        - createTable:
+            tableName: p_order_outbox
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: correlation_id
+                  type: varchar(36)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: domain_type
+                  type: varchar(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: domain_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: event_type
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: topic
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payload
+                  type: jsonb
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: status
+                  type: varchar(20)
+                  defaultValue: PENDING
+                  constraints:
+                    nullable: false
+              - column:
+                  name: retry_count
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_error
+                  type: text
+
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: published_at
+                  type: timestamptz
+
+        # poller 가 PENDING + 오래된 순으로 fetch — (status, created_at) 가 가장 효율적
+        - createIndex:
+            tableName: p_order_outbox
+            indexName: idx_p_order_outbox_status_created_at
+            columns:
+              - column:
+                  name: status
+              - column:
+                  name: created_at
+
+        # 도메인 단위 이벤트 추적 (한 주문의 발행 흐름 보기)
+        - createIndex:
+            tableName: p_order_outbox
+            indexName: idx_p_order_outbox_domain_id
+            columns:
+              - column:
+                  name: domain_id

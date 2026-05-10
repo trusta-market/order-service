@@ -12,11 +12,16 @@ public interface RequestPaymentUseCase {
 
     record RequestPaymentCommand(
             UUID orderId,
-            UUID buyerId   // 권한 검증용 (== order.buyer.id)
+            UUID buyerId,             // 권한 검증용 (== order.buyer.id)
+            String idempotencyKey     // Idempotency-Key 헤더 — 중복 결제 차단
     ) {
         public RequestPaymentCommand {
             if (orderId == null) throw new InvalidIdException("orderId");
             if (buyerId == null) throw new InvalidIdException("buyerId");
+            // 진입점 (controller 외 테스트/배치 등) 무관하게 record 가 직접 보장.
+            if (idempotencyKey == null || idempotencyKey.isBlank()) {
+                throw new InvalidIdException("idempotencyKey");
+            }
         }
     }
 }

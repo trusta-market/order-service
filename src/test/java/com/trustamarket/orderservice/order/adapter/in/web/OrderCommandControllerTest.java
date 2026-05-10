@@ -142,7 +142,8 @@ class OrderCommandControllerTest {
     void requestPayment_happyPath() throws Exception {
         mockMvc.perform(post("/api/v1/orders/{id}/payments", orderId)
                         .with(authentication(TestAuth.memberAuth(buyerId, "구매자")))
-                        .with(csrf()))
+                        .with(csrf())
+                        .header("Idempotency-Key", UUID.randomUUID().toString()))
                 .andExpect(status().isNoContent());
         verify(requestPaymentUseCase).requestPayment(any());
     }
@@ -151,7 +152,8 @@ class OrderCommandControllerTest {
     @DisplayName("requestPayment — 인증 없음 → 401")
     void requestPayment_unauthenticated() throws Exception {
         mockMvc.perform(post("/api/v1/orders/{id}/payments", orderId)
-                        .with(csrf()))
+                        .with(csrf())
+                        .header("Idempotency-Key", UUID.randomUUID().toString()))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -160,9 +162,11 @@ class OrderCommandControllerTest {
     void requestPayment_forbiddenForAdmin() throws Exception {
         mockMvc.perform(post("/api/v1/orders/{id}/payments", orderId)
                         .with(authentication(TestAuth.adminAuth(UUID.randomUUID())))
-                        .with(csrf()))
+                        .with(csrf())
+                        .header("Idempotency-Key", UUID.randomUUID().toString()))
                 .andExpect(status().isForbidden());
     }
+
 
     // ─── POST /api/v1/orders/{id}/cancellations ───
 

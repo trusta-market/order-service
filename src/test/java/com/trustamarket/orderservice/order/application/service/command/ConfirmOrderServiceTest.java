@@ -3,7 +3,6 @@ package com.trustamarket.orderservice.order.application.service.command;
 import com.trustamarket.orderservice.order.application.exception.UnauthorizedOrderAccessException;
 import com.trustamarket.orderservice.order.application.port.in.ConfirmOrderUseCase.ConfirmOrderCommand;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
-import com.trustamarket.orderservice.order.application.port.out.SettlementMessagePort;
 import com.trustamarket.orderservice.order.application.service.OrderTestFixtures;
 import com.trustamarket.orderservice.order.application.service.support.OrderHistoryRecorder;
 import com.trustamarket.orderservice.order.domain.model.Order;
@@ -25,12 +24,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+// confirm 직후 Events.trigger 로 OutboxEvent 두 개 발행 (ORDER.SETTLEMENT_REQUESTED + ORDER.PRODUCT_SOLD_OUT).
+// Outbox 흐름 자체는 OutboxEventListener / OutboxPoller 통합 테스트에서 검증 — 본 unit test 는 도메인 상태만.
 @ExtendWith(MockitoExtension.class)
 class ConfirmOrderServiceTest {
 
     @Mock OrderRepository orderRepository;
     @Mock OrderHistoryRecorder historyRecorder;
-    @Mock SettlementMessagePort settlementPublisher;
     @InjectMocks ConfirmOrderService service;
 
     @Test
@@ -47,21 +47,22 @@ class ConfirmOrderServiceTest {
         assertThat(order.getConfirmedAt()).isNotNull();
         verify(historyRecorder).record(order.getId(), OrderStatus.DELIVERED, OrderStatus.CONFIRMED, null);
         verify(orderRepository).save(order);
-        verify(settlementPublisher).publishForPaidOrder(order);
     }
 
     @Test
-    @DisplayName("PAID → CONFIRMED 시연 우회 — 정산 발행 (배송 단계 skip)")
-    void confirm_skipShippingFromPaid() {
+    @DisplayName("PAID 상태에서 confirm → InvalidStatusTransitionException (정공 흐름은 DELIVERED 만 허용)")
+    void confirm_fromPaid_rejected() {
         UUID buyerId = UUID.randomUUID();
-        Order order = OrderTestFixtures.paidOrder(buyerId, UUID.randomUUID());  // REQUESTED → PAYMENT_PENDING → PAID
+        Order order = OrderTestFixtures.paidOrder(buyerId, UUID.randomUUID());
         when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
 
-        service.confirm(new ConfirmOrderCommand(order.getId().value(), buyerId));
+        assertThatThrownBy(() ->
+                service.confirm(new ConfirmOrderCommand(order.getId().value(), buyerId))
+        ).isInstanceOf(com.trustamarket.orderservice.order.domain.exception.InvalidStatusTransitionException.class);
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
-        verify(historyRecorder).record(order.getId(), OrderStatus.PAID, OrderStatus.CONFIRMED, null);
-        verify(settlementPublisher).publishForPaidOrder(order);
+        verify(orderRepository, never()).save(any(Order.class));
+        // 예외 발생 전에 history 가 기록되는 회귀 차단
+        verify(historyRecorder, never()).record(any(), any(), any(), eq(null));
     }
 
     @Test

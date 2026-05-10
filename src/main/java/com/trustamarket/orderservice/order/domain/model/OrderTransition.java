@@ -44,10 +44,6 @@ public final class OrderTransition {
             Map.entry(new Key(PAID,                  START_SHIPPING),   SHIPPING),
             Map.entry(new Key(SHIPPING,              MARK_DELIVERED),   DELIVERED),
             Map.entry(new Key(DELIVERED,             CONFIRM),          CONFIRMED),
-            // 시연용 우회 — 배송 이벤트 컨슈머가 messaging PR 진입 전이라 SHIPPING/DELIVERED 자동 전이 X.
-            // PAID 직후 사용자가 confirm 호출 가능하도록 허용 (정공은 DELIVERED 거쳐야 함).
-            // TODO: messaging PR 머지 후 본 라인 삭제 + DELIVERED 만 허용
-            Map.entry(new Key(PAID,                  CONFIRM),          CONFIRMED),
 
             // 취소 분기 (배송 시작 전까지만)
             Map.entry(new Key(REQUESTED,             CANCEL),           CANCELLED),
