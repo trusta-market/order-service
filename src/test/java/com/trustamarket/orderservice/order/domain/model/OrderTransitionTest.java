@@ -33,7 +33,7 @@ class OrderTransitionTest {
                 Arguments.of(OrderStatus.REQUESTED, OrderAction.CANCEL, OrderStatus.CANCELLED),
                 Arguments.of(OrderStatus.PAYMENT_PENDING, OrderAction.CANCEL, OrderStatus.CANCELLED),
                 Arguments.of(OrderStatus.PAID, OrderAction.CANCEL, OrderStatus.CANCELLATION_PROCESSING),
-                // refund
+                // cancellation
                 Arguments.of(OrderStatus.CANCELLATION_PROCESSING, OrderAction.MARK_CANCELLED, OrderStatus.CANCELLATION_COMPLETED),
                 // return
                 Arguments.of(OrderStatus.SHIPPING, OrderAction.REQUEST_RETURN, OrderStatus.RETURN_REQUESTED),

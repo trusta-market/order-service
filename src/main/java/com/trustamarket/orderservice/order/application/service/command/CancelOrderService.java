@@ -2,7 +2,7 @@ package com.trustamarket.orderservice.order.application.service.command;
 
 import com.trustamarket.common.event.Events;
 import com.trustamarket.common.event.OutboxEvent;
-import com.trustamarket.orderservice.order.adapter.out.messaging.outbox.OutboxEventListener;
+import com.trustamarket.orderservice.order.application.event.messaging.OrderEventTypes;
 import com.trustamarket.orderservice.order.application.event.messaging.OrderCancellationRequestedMessage;
 import com.trustamarket.orderservice.order.application.port.in.CancelOrderUseCase;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
@@ -47,7 +47,7 @@ public class CancelOrderService implements CancelOrderUseCase {
         if (pre == OrderStatus.PAID) {
             Events.trigger(OutboxEvent.of(
                     DOMAIN_TYPE, order.getId().value(),
-                    OutboxEventListener.EVENT_ORDER_CANCELLATION_REQUESTED,
+                    OrderEventTypes.ORDER_CANCELLATION_REQUESTED,
                     OrderCancellationRequestedMessage.of(
                             order.getId().value(),
                             order.getBuyer().id(),
