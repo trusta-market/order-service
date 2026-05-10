@@ -34,7 +34,9 @@ spring:
 trusta:
   messaging:
     topic:
-      settlement-requested: order.wallet-settlement.requested
-      product-sold-out:    order.product.sold-out
-      delivery-started:    delivery.started
-      delivery-completed:  delivery.completed
+      settlement-requested:           order.wallet-settlement.requested
+      product-sold-out:               order.product.sold-out
+      delivery-started:               delivery.started
+      delivery-completed:             delivery.completed
+      order-cancellation-requested:   order.cancellation.requested
+      wallet-cancellation-completed:  wallet.cancellation.completed

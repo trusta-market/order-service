@@ -195,10 +195,10 @@ public class Order {
             throw RestoreStateMismatchException.missingConfirmedAt(status);
         }
 
-        // 취소/환불 상태는 cancelReason 필수
+        // 취소 관련 상태는 cancelReason 필수
         if ((status == OrderStatus.CANCELLED
-                || status == OrderStatus.REFUND_PROCESSING
-                || status == OrderStatus.REFUND_COMPLETED)
+                || status == OrderStatus.CANCELLATION_PROCESSING
+                || status == OrderStatus.CANCELLATION_COMPLETED)
                 && cancelReason == null) {
             throw RestoreStateMismatchException.missingCancelReason(status);
         }
@@ -275,11 +275,11 @@ public class Order {
     }
 
 
-    // 행위 메서드 — 취소 / 환불
+    // 행위 메서드 — 취소
 
-    // 취소 (배송 시작 전 단계만 허용 — REQUESTED/PAYMENT_PENDING → CANCELLED, PAID → REFUND_PROCESSING)
-    // OrderTransition 표가 잘못된 상태 조합을 자동 차단 (CancelNotAllowedException은 application 레이어에서 사전 검증 시 사용)
-    // OrderCancelledEvent를 application/adapter 레이어에서 발행 (Wallet 환불 트리거)
+    // 취소 (배송 시작 전까지만 허용 — REQUESTED/PAYMENT_PENDING → CANCELLED, PAID → CANCELLATION_PROCESSING)
+    // OrderTransition 표가 잘못된 상태 조합을 자동 차단 (CancelNotAllowedException 은 application 레이어 사전 검증용)
+    // PAID 분기에서는 application 이 후속으로 order.cancellation.requested Outbox 발행 → wallet escrow 복구.
     public void cancel(Reason reason) {
         if (reason == null) {
             throw new InvalidReasonException();
@@ -288,10 +288,10 @@ public class Order {
         this.cancelReason = reason;
     }
 
-    // REFUND_PROCESSING → REFUND_COMPLETED
-    // Wallet의 RefundCompleted 이벤트 수신 시
-    public void markRefunded() {
-        this.status = OrderTransition.apply(this.status, OrderAction.MARK_REFUNDED);
+    // CANCELLATION_PROCESSING → CANCELLATION_COMPLETED.
+    // wallet.cancellation.completed 수신 시 호출 (escrow → buyer 복구 끝났다는 신호).
+    public void markCancelled() {
+        this.status = OrderTransition.apply(this.status, OrderAction.MARK_CANCELLED);
     }
 
 

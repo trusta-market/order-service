@@ -25,9 +25,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OutboxEventListener {
 
-    // eventType 문자열 — ConfirmOrderService 등 발행자와 공유. 신규 추가 시 양쪽 + topic 매핑 함께 변경.
-    public static final String EVENT_SETTLEMENT_REQUESTED = "ORDER.SETTLEMENT_REQUESTED";
-    public static final String EVENT_PRODUCT_SOLD_OUT     = "ORDER.PRODUCT_SOLD_OUT";
+    // eventType 문자열 — 발행자와 공유. 신규 추가 시 양쪽 + topic 매핑 함께 변경.
+    public static final String EVENT_SETTLEMENT_REQUESTED         = "ORDER.SETTLEMENT_REQUESTED";
+    public static final String EVENT_PRODUCT_SOLD_OUT             = "ORDER.PRODUCT_SOLD_OUT";
+    public static final String EVENT_ORDER_CANCELLATION_REQUESTED = "ORDER.CANCELLATION_REQUESTED";
 
     private final OutboxJpaRepository outboxRepository;
     private final ObjectMapper objectMapper;
@@ -36,6 +37,8 @@ public class OutboxEventListener {
     private String settlementTopic;
     @Value("${trusta.messaging.topic.product-sold-out:order.product.sold-out}")
     private String productSoldOutTopic;
+    @Value("${trusta.messaging.topic.order-cancellation-requested:order.cancellation.requested}")
+    private String orderCancellationRequestedTopic;
 
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void onEvent(OutboxEvent event) {
@@ -60,8 +63,9 @@ public class OutboxEventListener {
     // 매핑 누락 시 silent fallback 금지 — 잘못된 토픽 발행 사고를 막기 위해 fail-fast.
     private String resolveTopic(String eventType) {
         return switch (eventType) {
-            case EVENT_SETTLEMENT_REQUESTED -> settlementTopic;
-            case EVENT_PRODUCT_SOLD_OUT     -> productSoldOutTopic;
+            case EVENT_SETTLEMENT_REQUESTED         -> settlementTopic;
+            case EVENT_PRODUCT_SOLD_OUT             -> productSoldOutTopic;
+            case EVENT_ORDER_CANCELLATION_REQUESTED -> orderCancellationRequestedTopic;
             default -> throw new IllegalStateException(
                     "Outbox 토픽 매핑 누락: eventType=" + eventType + ". switch case + application.yaml 토픽 키 추가 필요.");
         };

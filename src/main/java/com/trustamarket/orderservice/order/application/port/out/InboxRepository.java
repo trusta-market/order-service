@@ -22,6 +22,7 @@ public interface InboxRepository {
     enum InboxPurposeKey {
         REQUEST_PAYMENT,
         DELIVERY_STARTED,
-        DELIVERY_COMPLETED
+        DELIVERY_COMPLETED,
+        WALLET_CANCELLATION_COMPLETED
     }
 }

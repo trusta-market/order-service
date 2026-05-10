@@ -12,7 +12,7 @@ public interface WalletPaymentPort {
 
     // 주문 결제 시점에 포인트 차감 요청
     DeductPointResponse deduct(DeductPointRequest request);
-    // TODO: 환불 흐름은 MVP scope 외 — 추후 별도 PR에서 추가 (sync vs 이벤트 결정 포함)
+    // 취소 흐름은 sync 호출이 아닌 Kafka (order.cancellation.requested) 로 진행 — 본 port 와 무관.
 
     // 주문 -> 포인트 사용 요청 DTO
     // 금액은 룰 [3]에 따라 long(원시형) 사용. compact constructor로 입력 검증

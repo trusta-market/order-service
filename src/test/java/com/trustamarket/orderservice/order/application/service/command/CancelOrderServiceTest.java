@@ -45,7 +45,7 @@ class CancelOrderServiceTest {
     }
 
     @Test
-    @DisplayName("PAID 단계 취소 → REFUND_PROCESSING (markRefunded는 후속 PR)")
+    @DisplayName("PAID 단계 취소 → CANCELLATION_PROCESSING (markCancelled는 후속 PR)")
     void cancelPaid() {
         UUID buyerId = UUID.randomUUID();
         Order order = OrderTestFixtures.paidOrder(buyerId, UUID.randomUUID());
@@ -53,8 +53,8 @@ class CancelOrderServiceTest {
 
         service.cancel(new CancelOrderCommand(order.getId().value(), buyerId, "환불 요청"));
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUND_PROCESSING);
-        verify(historyRecorder).record(order.getId(), OrderStatus.PAID, OrderStatus.REFUND_PROCESSING, order.getCancelReason());
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLATION_PROCESSING);
+        verify(historyRecorder).record(order.getId(), OrderStatus.PAID, OrderStatus.CANCELLATION_PROCESSING, order.getCancelReason());
         verify(orderRepository).save(order);
     }
 

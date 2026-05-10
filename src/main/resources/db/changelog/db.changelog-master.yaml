@@ -9,3 +9,5 @@ databaseChangeLog:
       file: db/changelog/004-create-p-order-inbox.yaml
   - include:
       file: db/changelog/005-alter-p-order-inbox-composite-unique.yaml
+  - include:
+      file: db/changelog/006-rename-order-status-refund-to-cancellation.yaml

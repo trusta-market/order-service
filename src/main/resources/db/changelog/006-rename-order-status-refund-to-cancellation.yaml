@@ -1,0 +1,34 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-rename-order-status-refund-to-cancellation
+      author: lhk
+      changes:
+        # 기존 row 의 enum 값 일괄 UPDATE — 운영 데이터가 있어도 안전.
+        - sql:
+            sql: "UPDATE p_order SET status = 'CANCELLATION_PROCESSING' WHERE status = 'REFUND_PROCESSING'"
+        - sql:
+            sql: "UPDATE p_order SET status = 'CANCELLATION_COMPLETED'  WHERE status = 'REFUND_COMPLETED'"
+
+        # status_history 의 prev_status / next_status 도 동일 변환.
+        - sql:
+            sql: "UPDATE p_order_status_history SET prev_status = 'CANCELLATION_PROCESSING' WHERE prev_status = 'REFUND_PROCESSING'"
+        - sql:
+            sql: "UPDATE p_order_status_history SET prev_status = 'CANCELLATION_COMPLETED'  WHERE prev_status = 'REFUND_COMPLETED'"
+        - sql:
+            sql: "UPDATE p_order_status_history SET next_status = 'CANCELLATION_PROCESSING' WHERE next_status = 'REFUND_PROCESSING'"
+        - sql:
+            sql: "UPDATE p_order_status_history SET next_status = 'CANCELLATION_COMPLETED'  WHERE next_status = 'REFUND_COMPLETED'"
+
+      rollback:
+        - sql:
+            sql: "UPDATE p_order SET status = 'REFUND_PROCESSING' WHERE status = 'CANCELLATION_PROCESSING'"
+        - sql:
+            sql: "UPDATE p_order SET status = 'REFUND_COMPLETED'  WHERE status = 'CANCELLATION_COMPLETED'"
+        - sql:
+            sql: "UPDATE p_order_status_history SET prev_status = 'REFUND_PROCESSING' WHERE prev_status = 'CANCELLATION_PROCESSING'"
+        - sql:
+            sql: "UPDATE p_order_status_history SET prev_status = 'REFUND_COMPLETED'  WHERE prev_status = 'CANCELLATION_COMPLETED'"
+        - sql:
+            sql: "UPDATE p_order_status_history SET next_status = 'REFUND_PROCESSING' WHERE next_status = 'CANCELLATION_PROCESSING'"
+        - sql:
+            sql: "UPDATE p_order_status_history SET next_status = 'REFUND_COMPLETED'  WHERE next_status = 'CANCELLATION_COMPLETED'"
