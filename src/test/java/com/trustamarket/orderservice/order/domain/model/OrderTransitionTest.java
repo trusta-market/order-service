@@ -32,9 +32,9 @@ class OrderTransitionTest {
                 // cancel
                 Arguments.of(OrderStatus.REQUESTED, OrderAction.CANCEL, OrderStatus.CANCELLED),
                 Arguments.of(OrderStatus.PAYMENT_PENDING, OrderAction.CANCEL, OrderStatus.CANCELLED),
-                Arguments.of(OrderStatus.PAID, OrderAction.CANCEL, OrderStatus.REFUND_PROCESSING),
-                // refund
-                Arguments.of(OrderStatus.REFUND_PROCESSING, OrderAction.MARK_REFUNDED, OrderStatus.REFUND_COMPLETED),
+                Arguments.of(OrderStatus.PAID, OrderAction.CANCEL, OrderStatus.CANCELLATION_PROCESSING),
+                // cancellation
+                Arguments.of(OrderStatus.CANCELLATION_PROCESSING, OrderAction.MARK_CANCELLED, OrderStatus.CANCELLATION_COMPLETED),
                 // return
                 Arguments.of(OrderStatus.SHIPPING, OrderAction.REQUEST_RETURN, OrderStatus.RETURN_REQUESTED),
                 Arguments.of(OrderStatus.DELIVERED, OrderAction.REQUEST_RETURN, OrderStatus.RETURN_REQUESTED),
@@ -56,7 +56,7 @@ class OrderTransitionTest {
                 // 종결 상태에서의 모든 액션
                 Arguments.of(OrderStatus.CONFIRMED, OrderAction.CANCEL),
                 Arguments.of(OrderStatus.CANCELLED, OrderAction.REQUEST_PAYMENT),
-                Arguments.of(OrderStatus.REFUND_COMPLETED, OrderAction.CANCEL),
+                Arguments.of(OrderStatus.CANCELLATION_COMPLETED, OrderAction.CANCEL),
                 Arguments.of(OrderStatus.RETURN_REJECTED, OrderAction.APPROVE_RETURN),
                 // 배송 시작 후 취소 차단
                 Arguments.of(OrderStatus.SHIPPING, OrderAction.CANCEL),

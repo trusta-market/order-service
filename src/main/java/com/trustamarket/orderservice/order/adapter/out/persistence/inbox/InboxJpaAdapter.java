@@ -52,9 +52,10 @@ public class InboxJpaAdapter implements InboxRepository {
 
     private static InboxPurpose toJpaPurpose(InboxPurposeKey key) {
         return switch (key) {
-            case REQUEST_PAYMENT     -> InboxPurpose.REQUEST_PAYMENT;
-            case DELIVERY_STARTED    -> InboxPurpose.DELIVERY_STARTED;
-            case DELIVERY_COMPLETED  -> InboxPurpose.DELIVERY_COMPLETED;
+            case REQUEST_PAYMENT                -> InboxPurpose.REQUEST_PAYMENT;
+            case DELIVERY_STARTED               -> InboxPurpose.DELIVERY_STARTED;
+            case DELIVERY_COMPLETED             -> InboxPurpose.DELIVERY_COMPLETED;
+            case WALLET_CANCELLATION_COMPLETED  -> InboxPurpose.WALLET_CANCELLATION_COMPLETED;
         };
     }
 }

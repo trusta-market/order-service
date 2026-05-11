@@ -9,5 +9,5 @@ public enum OrderReturnStatus {
     RETURN_COLLECTING,    // 구매자 → 센터 반송 배송 중
     RETURN_RECEIVED,      // 센터 도착
     RETURN_INSPECTING,    // 재검수 중
-    RETURN_COMPLETED      // 반송 완료 (이후 환불 흐름)
+    RETURN_COMPLETED      // 반송 완료 (이후 취소 흐름은 별도 PR)
 }

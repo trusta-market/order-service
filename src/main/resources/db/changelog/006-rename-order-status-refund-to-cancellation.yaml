@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-rename-order-status-refund-to-cancellation
+      author: lhk
+      changes:
+        # p_order — 현재 상태 컬럼은 도메인 명명 변경에 맞춰 갱신 필요 (도메인 코드와 enum 값 일관성).
+        - sql:
+            sql: "UPDATE p_order SET status = 'CANCELLATION_PROCESSING' WHERE status = 'REFUND_PROCESSING'"
+        - sql:
+            sql: "UPDATE p_order SET status = 'CANCELLATION_COMPLETED'  WHERE status = 'REFUND_COMPLETED'"
+
+        # p_order_status_history 는 append-only 정책이라 본 changeSet 에서 UPDATE 하지 않음.
+        # 옛 enum 값 (REFUND_*) 가 그대로 보존되어 그 시점 진실을 기록.
+        # OrderStatus 코드에는 새 enum 값만 있어서 history 조회 시 옛 값을 읽으면 매핑 실패하므로,
+        # 조회 측은 "REFUND_*" 문자열을 직접 비교 가능한 read-side 처리로 대응 (별도 후속).
+
+      rollback:
+        - sql:
+            sql: "UPDATE p_order SET status = 'REFUND_PROCESSING' WHERE status = 'CANCELLATION_PROCESSING'"
+        - sql:
+            sql: "UPDATE p_order SET status = 'REFUND_COMPLETED'  WHERE status = 'CANCELLATION_COMPLETED'"

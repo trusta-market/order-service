@@ -1,5 +1,9 @@
 package com.trustamarket.orderservice.order.application.service.command;
 
+import com.trustamarket.common.event.Events;
+import com.trustamarket.common.event.OutboxEvent;
+import com.trustamarket.orderservice.order.application.event.messaging.OrderEventTypes;
+import com.trustamarket.orderservice.order.application.event.messaging.OrderCancellationRequestedMessage;
 import com.trustamarket.orderservice.order.application.port.in.CancelOrderUseCase;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
 import com.trustamarket.orderservice.order.application.service.support.OrderAccessGuard;
@@ -12,11 +16,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// REQUESTED/PAYMENT_PENDING → CANCELLED, PAID → REFUND_PROCESSING
-// markRefunded(환불 완료) 호출은 MVP scope 외 (Wallet 환불 호출 + 이벤트는 후속 PR)
+import java.time.Instant;
+
+// 결제 전: REQUESTED / PAYMENT_PENDING → CANCELLED (wallet 무관)
+// 결제 후 (PAID): CANCELLATION_PROCESSING + Outbox publish → wallet escrow 복구 후
+//                wallet.cancellation.completed 수신 → MarkOrderCancelledService 가 CANCELLATION_COMPLETED 마킹
 @Service
 @RequiredArgsConstructor
 public class CancelOrderService implements CancelOrderUseCase {
+
+    private static final String DOMAIN_TYPE = "ORDER";
 
     private final OrderRepository orderRepository;
     private final OrderHistoryRecorder historyRecorder;
@@ -34,7 +43,16 @@ public class CancelOrderService implements CancelOrderUseCase {
 
         orderRepository.save(order);
 
-        // TODO: 다음 PR — PAID 이전이었으면 OrderCancelledEvent 발행 (Wallet 환불 트리거)
-        //       지금 흐름: REFUND_PROCESSING 상태로 두고 markRefunded는 후속 PR에서 호출
+        // 결제 후 취소만 wallet 통신 필요 — 결제 전 취소는 wallet 차감 없으니 publish X.
+        if (pre == OrderStatus.PAID) {
+            Events.trigger(OutboxEvent.of(
+                    DOMAIN_TYPE, order.getId().value(),
+                    OrderEventTypes.ORDER_CANCELLATION_REQUESTED,
+                    OrderCancellationRequestedMessage.of(
+                            order.getId().value(),
+                            order.getBuyer().id(),
+                            order.getTotalAmount().value(),
+                            Instant.now())));
+        }
     }
 }

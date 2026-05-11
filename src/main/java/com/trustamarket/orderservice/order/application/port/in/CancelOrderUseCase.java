@@ -6,8 +6,8 @@ import com.trustamarket.orderservice.order.domain.exception.InvalidReasonExcepti
 import java.util.UUID;
 
 // 주문 취소 — POST /api/orders/{id}/cancellations
-// REQUESTED/PAYMENT_PENDING → CANCELLED, PAID → REFUND_PROCESSING
-// markRefunded(환불 완료 처리)는 MVP scope 외 (TODO)
+// REQUESTED/PAYMENT_PENDING → CANCELLED, PAID → CANCELLATION_PROCESSING
+// CANCELLATION_PROCESSING → CANCELLATION_COMPLETED 는 MarkOrderCancelledUseCase 가 처리.
 public interface CancelOrderUseCase {
 
     void cancel(CancelOrderCommand command);

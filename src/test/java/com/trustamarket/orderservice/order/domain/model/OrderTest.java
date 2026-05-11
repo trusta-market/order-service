@@ -128,7 +128,7 @@ class OrderTest {
         }
 
         @Test
-        @DisplayName("PAID에서 cancel은 REFUND_PROCESSING")
+        @DisplayName("PAID에서 cancel은 CANCELLATION_PROCESSING")
         void cancelAfterPayment() {
             Order order = newOrder();
             order.requestPayment();
@@ -136,20 +136,20 @@ class OrderTest {
 
             order.cancel(Reason.of("환불"));
 
-            assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUND_PROCESSING);
+            assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLATION_PROCESSING);
         }
 
         @Test
-        @DisplayName("REFUND_PROCESSING에서 markRefunded는 REFUND_COMPLETED")
-        void markRefunded() {
+        @DisplayName("CANCELLATION_PROCESSING에서 markCancelled는 CANCELLATION_COMPLETED")
+        void markCancelled() {
             Order order = newOrder();
             order.requestPayment();
             order.markPaid();
             order.cancel(Reason.of("환불"));
 
-            order.markRefunded();
+            order.markCancelled();
 
-            assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUND_COMPLETED);
+            assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLATION_COMPLETED);
         }
 
         @Test
@@ -413,13 +413,13 @@ class OrderTest {
         }
 
         @Test
-        @DisplayName("CANCELLED/REFUND_PROCESSING/REFUND_COMPLETED는 cancelReason 필수")
+        @DisplayName("CANCELLED/CANCELLATION_PROCESSING/CANCELLATION_COMPLETED는 cancelReason 필수")
         void cancelledWithoutCancelReason() {
             assertThatThrownBy(() -> baseBuilder(OrderStatus.CANCELLED).build())
                     .isInstanceOf(RestoreStateMismatchException.class);
-            assertThatThrownBy(() -> baseBuilder(OrderStatus.REFUND_PROCESSING).build())
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.CANCELLATION_PROCESSING).build())
                     .isInstanceOf(RestoreStateMismatchException.class);
-            assertThatThrownBy(() -> baseBuilder(OrderStatus.REFUND_COMPLETED).build())
+            assertThatThrownBy(() -> baseBuilder(OrderStatus.CANCELLATION_COMPLETED).build())
                     .isInstanceOf(RestoreStateMismatchException.class);
         }
 

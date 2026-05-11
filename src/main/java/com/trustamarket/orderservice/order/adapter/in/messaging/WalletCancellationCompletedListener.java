@@ -1,11 +1,12 @@
 package com.trustamarket.orderservice.order.adapter.in.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.trustamarket.orderservice.order.adapter.in.messaging.dto.DeliveryCompletedMessage;
-import com.trustamarket.orderservice.order.application.port.in.MarkOrderDeliveredUseCase;
+import com.trustamarket.orderservice.order.adapter.in.messaging.dto.WalletCancellationCompletedMessage;
+import com.trustamarket.orderservice.order.application.port.in.MarkOrderCancelledUseCase;
 import com.trustamarket.orderservice.order.application.port.out.InboxRepository;
 import com.trustamarket.orderservice.order.application.port.out.InboxRepository.InboxPurposeKey;
 import com.trustamarket.orderservice.order.domain.exception.OrderException;
+import com.trustamarket.orderservice.order.domain.model.OrderId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.trustamarket.common.messaging.IdempotentConsumer;
@@ -16,50 +17,52 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-// delivery.completed 토픽 consume → SHIPPING → DELIVERED 전이.
+// wallet.cancellation.completed 토픽 consume → CANCELLATION_PROCESSING → CANCELLATION_COMPLETED.
 // 동일 패턴: port 의존, atomic dedup, afterCommit ack, raw JSON 로그 X.
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class DeliveryCompletedListener {
+public class WalletCancellationCompletedListener {
 
-    private static final String CONSUMER_GROUP = "order-delivery-completed-group";
+    private static final String CONSUMER_GROUP = "order-wallet-cancellation-completed-group";
 
-    private final MarkOrderDeliveredUseCase markOrderDeliveredUseCase;
+    private final MarkOrderCancelledUseCase markOrderCancelledUseCase;
     private final InboxRepository inboxRepository;
     private final ObjectMapper objectMapper;
 
     @IdempotentConsumer(CONSUMER_GROUP)
-    @KafkaListener(topics = "${trusta.messaging.topic.delivery-completed:delivery.completed}",
+    @KafkaListener(topics = "${trusta.messaging.topic.wallet-cancellation-completed:wallet.cancellation.completed}",
             groupId = CONSUMER_GROUP)
     @Transactional
     public void consume(String json, Acknowledgment ack) {
-        DeliveryCompletedMessage message;
+        WalletCancellationCompletedMessage message;
         try {
-            message = objectMapper.readValue(json, DeliveryCompletedMessage.class);
+            message = objectMapper.readValue(json, WalletCancellationCompletedMessage.class);
         } catch (Exception e) {
-            log.error("[DeliveryCompleted] payload 파싱 실패 — ack + skip (length={})", json == null ? -1 : json.length(), e);
+            log.error("[WalletCancellationCompleted] payload 파싱 실패 — ack + skip (length={})",
+                    json == null ? -1 : json.length(), e);
             ack.acknowledge();
             return;
         }
 
-        if (!inboxRepository.tryRecordKafkaEvent(message.eventId(), CONSUMER_GROUP, InboxPurposeKey.DELIVERY_COMPLETED)) {
-            log.info("[DeliveryCompleted] 중복 메시지 — ack + skip. eventId={}, orderId={}",
+        if (!inboxRepository.tryRecordKafkaEvent(message.eventId(), CONSUMER_GROUP, InboxPurposeKey.WALLET_CANCELLATION_COMPLETED)) {
+            log.info("[WalletCancellationCompleted] 중복 메시지 — ack + skip. eventId={}, orderId={}",
                     message.eventId(), message.orderId());
             ack.acknowledge();
             return;
         }
 
         try {
-            log.info("[DeliveryCompleted] consume — eventId={}, orderId={}", message.eventId(), message.orderId());
-            markOrderDeliveredUseCase.markDelivered(message.orderId());
+            log.info("[WalletCancellationCompleted] consume — eventId={}, orderId={}, cancelledAmount={}",
+                    message.eventId(), message.orderId(), message.cancelledAmount());
+            markOrderCancelledUseCase.markCancelled(OrderId.of(message.orderId()));
             ackAfterCommit(ack);
         } catch (OrderException e) {
-            log.warn("[DeliveryCompleted] non-retryable, ack + skip — eventId={}, orderId={}",
+            log.warn("[WalletCancellationCompleted] non-retryable, ack + skip — eventId={}, orderId={}",
                     message.eventId(), message.orderId(), e);
             ack.acknowledge();
         } catch (Exception e) {
-            log.error("[DeliveryCompleted] 처리 실패 — eventId={}, orderId={}",
+            log.error("[WalletCancellationCompleted] 처리 실패 — eventId={}, orderId={}",
                     message.eventId(), message.orderId(), e);
             throw e;
         }

@@ -14,7 +14,7 @@ class OrderStatusTest {
     private static final Set<OrderStatus> TERMINAL = Set.of(
             OrderStatus.CONFIRMED,
             OrderStatus.CANCELLED,
-            OrderStatus.REFUND_COMPLETED,
+            OrderStatus.CANCELLATION_COMPLETED,
             OrderStatus.RETURN_REJECTED,
             OrderStatus.RETURN_APPROVED
     );

@@ -9,7 +9,7 @@ import static com.trustamarket.orderservice.order.domain.model.OrderAction.CANCE
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.CONFIRM;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.MARK_DELIVERED;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.MARK_PAID;
-import static com.trustamarket.orderservice.order.domain.model.OrderAction.MARK_REFUNDED;
+import static com.trustamarket.orderservice.order.domain.model.OrderAction.MARK_CANCELLED;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.REJECT_RETURN;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.REQUEST_PAYMENT;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.REQUEST_RETURN;
@@ -19,8 +19,8 @@ import static com.trustamarket.orderservice.order.domain.model.OrderStatus.CONFI
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.DELIVERED;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.PAID;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.PAYMENT_PENDING;
-import static com.trustamarket.orderservice.order.domain.model.OrderStatus.REFUND_COMPLETED;
-import static com.trustamarket.orderservice.order.domain.model.OrderStatus.REFUND_PROCESSING;
+import static com.trustamarket.orderservice.order.domain.model.OrderStatus.CANCELLATION_COMPLETED;
+import static com.trustamarket.orderservice.order.domain.model.OrderStatus.CANCELLATION_PROCESSING;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.REQUESTED;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.RETURN_APPROVED;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.RETURN_REJECTED;
@@ -48,10 +48,10 @@ public final class OrderTransition {
             // 취소 분기 (배송 시작 전까지만)
             Map.entry(new Key(REQUESTED,             CANCEL),           CANCELLED),
             Map.entry(new Key(PAYMENT_PENDING,       CANCEL),           CANCELLED),
-            Map.entry(new Key(PAID,                  CANCEL),           REFUND_PROCESSING),
+            Map.entry(new Key(PAID,                  CANCEL),           CANCELLATION_PROCESSING),
 
-            // 환불 완료 (Wallet RefundCompleted 수신)
-            Map.entry(new Key(REFUND_PROCESSING,     MARK_REFUNDED),    REFUND_COMPLETED),
+            // 결제 후 취소 완료 (wallet.cancellation.completed 수신)
+            Map.entry(new Key(CANCELLATION_PROCESSING,     MARK_CANCELLED),    CANCELLATION_COMPLETED),
 
             // 반송 분기 (배송 시작 후만)
             Map.entry(new Key(SHIPPING,              REQUEST_RETURN),   RETURN_REQUESTED),
