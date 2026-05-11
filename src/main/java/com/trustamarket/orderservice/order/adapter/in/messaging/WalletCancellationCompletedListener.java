@@ -9,6 +9,7 @@ import com.trustamarket.orderservice.order.domain.exception.OrderException;
 import com.trustamarket.orderservice.order.domain.model.OrderId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.trustamarket.common.messaging.IdempotentConsumer;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,7 @@ public class WalletCancellationCompletedListener {
     private final InboxRepository inboxRepository;
     private final ObjectMapper objectMapper;
 
+    @IdempotentConsumer(CONSUMER_GROUP)
     @KafkaListener(topics = "${trusta.messaging.topic.wallet-cancellation-completed:wallet.cancellation.completed}",
             groupId = CONSUMER_GROUP)
     @Transactional
