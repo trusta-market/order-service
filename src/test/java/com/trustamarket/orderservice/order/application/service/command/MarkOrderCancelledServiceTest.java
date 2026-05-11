@@ -40,7 +40,7 @@ class MarkOrderCancelledServiceTest {
         order.cancel(Reason.of("buyer 변심"));   // PAID → CANCELLATION_PROCESSING
         when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
 
-        service.markCancelled(order.getId().value());
+        service.markCancelled(order.getId());
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLATION_COMPLETED);
         verify(historyRecorder).record(order.getId(),
@@ -55,7 +55,7 @@ class MarkOrderCancelledServiceTest {
         when(orderRepository.findByIdOrThrow(OrderId.of(orderId)))
                 .thenThrow(new OrderNotFoundException(orderId));
 
-        assertThatThrownBy(() -> service.markCancelled(orderId))
+        assertThatThrownBy(() -> service.markCancelled(OrderId.of(orderId)))
                 .isInstanceOf(OrderNotFoundException.class);
 
         verify(orderRepository, never()).save(any());
@@ -71,7 +71,7 @@ class MarkOrderCancelledServiceTest {
         order.markCancelled();   // CANCELLATION_PROCESSING → CANCELLATION_COMPLETED
         when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
 
-        assertThatThrownBy(() -> service.markCancelled(order.getId().value()))
+        assertThatThrownBy(() -> service.markCancelled(order.getId()))
                 .isInstanceOf(InvalidStatusTransitionException.class);
 
         verify(orderRepository, never()).save(any());

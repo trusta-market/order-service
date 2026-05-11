@@ -6,6 +6,7 @@ import com.trustamarket.orderservice.order.application.port.in.MarkOrderCancelle
 import com.trustamarket.orderservice.order.application.port.out.InboxRepository;
 import com.trustamarket.orderservice.order.application.port.out.InboxRepository.InboxPurposeKey;
 import com.trustamarket.orderservice.order.domain.exception.OrderException;
+import com.trustamarket.orderservice.order.domain.model.OrderId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -52,7 +53,7 @@ public class WalletCancellationCompletedListener {
         try {
             log.info("[WalletCancellationCompleted] consume — eventId={}, orderId={}, cancelledAmount={}",
                     message.eventId(), message.orderId(), message.cancelledAmount());
-            markOrderCancelledUseCase.markCancelled(message.orderId());
+            markOrderCancelledUseCase.markCancelled(OrderId.of(message.orderId()));
             ackAfterCommit(ack);
         } catch (OrderException e) {
             log.warn("[WalletCancellationCompleted] non-retryable, ack + skip — eventId={}, orderId={}",

@@ -10,8 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
-
 @Service
 @RequiredArgsConstructor
 public class MarkOrderCancelledService implements MarkOrderCancelledUseCase {
@@ -21,8 +19,8 @@ public class MarkOrderCancelledService implements MarkOrderCancelledUseCase {
 
     @Override
     @Transactional
-    public void markCancelled(UUID orderId) {
-        Order order = orderRepository.findByIdOrThrow(OrderId.of(orderId));
+    public void markCancelled(OrderId orderId) {
+        Order order = orderRepository.findByIdOrThrow(orderId);
         OrderStatus pre = order.getStatus();
         order.markCancelled();
         historyRecorder.record(order.getId(), pre, order.getStatus(), null);
