@@ -6,6 +6,11 @@ metadata:
     app: order-service
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       app: order-service
@@ -48,7 +53,7 @@ spec:
             # Kafka VM 셋업 후 ConfigMap 또는 env override.
           resources:
             requests:
-              cpu: 700m
+              cpu: 500m
               memory: 2Gi
             limits:
               cpu: 1000m
