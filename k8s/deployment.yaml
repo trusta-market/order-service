@@ -48,11 +48,11 @@ spec:
             # Kafka VM 셋업 후 ConfigMap 또는 env override.
           resources:
             requests:
-              cpu: 500m
-              memory: 1Gi
+              cpu: 700m
+              memory: 2Gi
             limits:
               cpu: 1000m
-              memory: 2Gi
+              memory: 2500Mi
           startupProbe:
             httpGet:
               path: /actuator/health
