@@ -40,3 +40,13 @@ trusta:
       delivery-completed:             delivery.completed
       order-cancellation-requested:   order.cancellation.requested
       wallet-cancellation-completed:  wallet.cancellation.completed
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
