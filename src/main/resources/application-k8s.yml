@@ -1,0 +1,29 @@
+# K8s 환경 전용 override (SPRING_PROFILES_ACTIVE=k8s 일 때만 로드).
+# config-server (Pod) 가 config-repo 의 order-service.yml 도 가져옴 — 둘이 같이 적용.
+
+server:
+  # config-server 못 닿을 때를 대비한 default. config-server 에서 가져오면 그 값 우선.
+  port: 8103
+
+spring:
+  config:
+    # K8s 안에선 config-server Service 로 직접 호출.
+    import: "optional:configserver:http://config-server"
+  cloud:
+    config:
+      uri: http://config-server
+      label: develop
+      fail-fast: false
+  datasource:
+    # 도메인 공유 PG (Cloud SQL 마이그레이션은 PRD §9-#10 후속).
+    # username / password 는 Deployment env 의 secretKeyRef 로 주입.
+    url: jdbc:postgresql://postgres:5432/trusta_market
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
