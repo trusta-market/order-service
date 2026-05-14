@@ -6,6 +6,10 @@ server:
   port: 8103
 
 spring:
+  main:
+    # common 의 auditorAware 와 order 자체 JpaAuditingConfig.auditorAware 의 override 허용
+    # (의도된 패턴 — order-service 의 JpaAuditingConfig 주석 참조).
+    allow-bean-definition-overriding: true
   config:
     # K8s 안에선 config-server Service 로 직접 호출.
     import: "optional:configserver:http://config-server"
