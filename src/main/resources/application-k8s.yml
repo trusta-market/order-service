@@ -24,6 +24,9 @@ spring:
     url: jdbc:postgresql://postgres:5432/trusta_market
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+  # Kafka — GKE namespace 'kafka' 의 StatefulSet 3 broker. 새 cluster (별도 CLUSTER_ID), 토픽 초기화됨.
+  kafka:
+    bootstrap-servers: kafka.kafka:9092
 
 eureka:
   client:
