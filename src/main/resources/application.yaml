@@ -40,6 +40,7 @@ trusta:
       delivery-completed:             delivery.completed
       order-cancellation-requested:   order.cancellation.requested
       wallet-cancellation-completed:  wallet.cancellation.completed
+      order-paid:                     order.paid
 
 management:
   endpoint:
