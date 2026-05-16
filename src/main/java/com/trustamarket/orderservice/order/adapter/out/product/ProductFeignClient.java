@@ -9,10 +9,7 @@ import java.util.UUID;
 
 // product-service 의 internal API (`GET /internal/v1/products/{id}`) 호출.
 // X-User-* 헤더는 common FeignConfig 의 RequestInterceptor 가 자동 전파.
-@FeignClient(
-        name = "product-service",
-        url = "${trusta.product-service.url:http://localhost:8102}"
-)
+@FeignClient(name = "product-service")
 public interface ProductFeignClient {
 
     @GetMapping("/internal/v1/products/{productId}")
