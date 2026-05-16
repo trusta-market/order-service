@@ -35,6 +35,8 @@ public class OutboxEventListener {
     private String productSoldOutTopic;
     @Value("${trusta.messaging.topic.order-cancellation-requested:order.cancellation.requested}")
     private String orderCancellationRequestedTopic;
+    @Value("${trusta.messaging.topic.order-paid:order.paid}")
+    private String orderPaidTopic;
 
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void onEvent(OutboxEvent event) {
@@ -62,6 +64,7 @@ public class OutboxEventListener {
             case OrderEventTypes.SETTLEMENT_REQUESTED         -> settlementTopic;
             case OrderEventTypes.PRODUCT_SOLD_OUT             -> productSoldOutTopic;
             case OrderEventTypes.ORDER_CANCELLATION_REQUESTED -> orderCancellationRequestedTopic;
+            case OrderEventTypes.ORDER_PAID                   -> orderPaidTopic;
             default -> throw new IllegalStateException(
                     "Outbox 토픽 매핑 누락: eventType=" + eventType + ". switch case + application.yaml 토픽 키 추가 필요.");
         };

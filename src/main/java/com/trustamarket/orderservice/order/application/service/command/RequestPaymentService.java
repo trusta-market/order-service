@@ -1,5 +1,9 @@
 package com.trustamarket.orderservice.order.application.service.command;
 
+import com.trustamarket.common.event.Events;
+import com.trustamarket.common.event.OutboxEvent;
+import com.trustamarket.orderservice.order.application.event.messaging.OrderEventTypes;
+import com.trustamarket.orderservice.order.application.event.messaging.OrderPaidMessage;
 import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUseCase;
 import com.trustamarket.orderservice.order.application.port.out.InboxRepository;
 import com.trustamarket.orderservice.order.application.port.out.InboxRepository.InboxPurposeKey;
@@ -26,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class RequestPaymentService implements RequestPaymentUseCase {
+
+    private static final String DOMAIN_TYPE = "ORDER";
 
     private final OrderRepository orderRepository;
     private final OrderHistoryRecorder historyRecorder;
@@ -63,6 +69,17 @@ public class RequestPaymentService implements RequestPaymentUseCase {
         historyRecorder.record(order.getId(), prePaid, order.getStatus(), null);
 
         orderRepository.save(order);
+
+        Events.trigger(OutboxEvent.of(
+                DOMAIN_TYPE, order.getId().value(),
+                OrderEventTypes.ORDER_PAID,
+                OrderPaidMessage.of(
+                        order.getId().value(),
+                        order.getProduct().id(),
+                        order.getSeller().id(),
+                        order.getBuyer().id(),
+                        order.getType().name())));
+
         // 멱등성 키는 진입부 tryRecordIdempotencyKey 에서 이미 INSERT 됨.
         // 본 트랜잭션이 rollback 되면 inbox 도 같이 rollback 되어야 하는데, REQUIRES_NEW 라 분리됨 →
         // wallet 차감 실패 등으로 이 메서드가 throw 시 inbox 만 남는 케이스 발생 가능.

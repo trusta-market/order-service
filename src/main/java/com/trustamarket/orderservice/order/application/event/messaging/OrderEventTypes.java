@@ -8,6 +8,7 @@ public final class OrderEventTypes {
     public static final String SETTLEMENT_REQUESTED         = "ORDER.SETTLEMENT_REQUESTED";
     public static final String PRODUCT_SOLD_OUT             = "ORDER.PRODUCT_SOLD_OUT";
     public static final String ORDER_CANCELLATION_REQUESTED = "ORDER.CANCELLATION_REQUESTED";
+    public static final String ORDER_PAID                   = "ORDER.PAID";
 
     private OrderEventTypes() {}
 }

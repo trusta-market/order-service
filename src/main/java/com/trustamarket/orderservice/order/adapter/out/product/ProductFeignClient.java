@@ -11,7 +11,7 @@ import java.util.UUID;
 // X-User-* 헤더는 common FeignConfig 의 RequestInterceptor 가 자동 전파.
 @FeignClient(
         name = "product-service",
-        url = "${trusta.product-service.url:http://localhost:18081}"
+        url = "${trusta.product-service.url:http://localhost:8102}"
 )
 public interface ProductFeignClient {
 
