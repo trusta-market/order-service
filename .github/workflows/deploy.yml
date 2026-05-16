@@ -53,3 +53,15 @@ jobs:
 
       - name: Wait for rollout
         run: kubectl rollout status deployment/order-service --timeout=5m
+
+  # deploy job 의 어느 step 이라도 실패 시 — trusta-monitoring 의 reusable workflow 호출.
+  # kubectl logs --previous --tail=50 으로 pod log 추출 + notification-service webhook POST → Discord.
+  notify-failure:
+    needs: deploy
+    if: failure()
+    uses: trusta-market/trusta-monitoring/.github/workflows/notify-deploy-failure.yml@main
+    with:
+      service: order-service
+    permissions:
+      contents: read
+      id-token: write
