@@ -27,6 +27,15 @@ spring:
   # Kafka — GKE namespace 'kafka' 의 StatefulSet 3 broker. 새 cluster (별도 CLUSTER_ID), 토픽 초기화됨.
   kafka:
     bootstrap-servers: kafka.kafka:9092
+  # 도메인별 schema 분리 — service 간 databasechangelog 충돌 + 데이터 격리.
+  liquibase:
+    default-schema: p_order
+    liquibase-schema: p_order
+  jpa:
+    properties:
+      hibernate:
+        # JPA entity 의 @Table 에 schema 명시 없을 때 사용할 default schema.
+        default_schema: p_order
 
 eureka:
   client:
