@@ -51,13 +51,16 @@ spec:
                   key: DB_PASSWORD
             # Kafka 미연결 상태에서도 startup OK (spring-kafka 는 lazy connect).
             # Kafka VM 셋업 후 ConfigMap 또는 env override.
+          # request 는 실 사용량 기반 (CPU ~25m, memory ~400Mi, burst 여유 포함).
+          # limit 은 thread 800 stack (~800MB) + heap (limit*25%=500MB) + 기타 = ~1.5GB 안에 맞춤.
+          # request 줄임 → 노드당 pod 수 증가 → HPA scale 자리 확보 (e2-medium 4Gi 노드 기준 3 pod/노드).
           resources:
             requests:
-              cpu: 500m
-              memory: 2Gi
+              cpu: 100m
+              memory: 800Mi
             limits:
-              cpu: 1000m
-              memory: 2500Mi
+              cpu: 1500m
+              memory: 2Gi
           startupProbe:
             httpGet:
               path: /actuator/health

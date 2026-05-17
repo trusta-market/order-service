@@ -4,6 +4,13 @@
 server:
   # config-server 못 닿을 때를 대비한 default. config-server 에서 가져오면 그 값 우선.
   port: 8103
+  # Tomcat — 부하 테스트 결과로 default threads.max=200 이 단일 pod 의 동시 처리 한계.
+  # 800 으로 증액 (stack ~800MB, memory limit 2Gi 안). accept-count 도 같이 늘려서 queue 더 받음.
+  tomcat:
+    threads:
+      max: 800
+    accept-count: 300
+    max-connections: 20000
 
 spring:
   main:
@@ -24,6 +31,10 @@ spring:
     url: jdbc:postgresql://postgres:5432/trusta_market
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+    # HikariCP pool — default 10 이 thread 800 대비 너무 작아서 thread 가 pool 대기.
+    # postgres max_connections=700 안에서 7 DB service × pool 18 × HPA max 5 = 630 (안전선).
+    hikari:
+      maximum-pool-size: 18
   # Kafka — GKE namespace 'kafka' 의 StatefulSet 3 broker. 새 cluster (별도 CLUSTER_ID), 토픽 초기화됨.
   kafka:
     bootstrap-servers: kafka.kafka:9092

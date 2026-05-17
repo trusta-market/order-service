@@ -1,0 +1,23 @@
+# 부하 테스트 결과로 단일 pod (Tomcat threads 800) 가 read 부하 처리 한계.
+# CPU 70% 도달 시 자동 scale (max 5). postgres max_connections=700 안에서
+# 7 DB service × pool 18 × max 5 = 630 (안전선).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: order-service
+  labels:
+    app: order-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order-service
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
