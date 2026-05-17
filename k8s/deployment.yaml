@@ -49,6 +49,12 @@ spec:
                 secretKeyRef:
                   name: domain-postgres-secrets
                   key: DB_PASSWORD
+            # DB_HOST — Cloud SQL Private IP (Secret 에서 주입). application-k8s.yml 의 ${DB_HOST:postgres} 와 대응.
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: domain-postgres-secrets
+                  key: DB_HOST
             # Kafka 미연결 상태에서도 startup OK (spring-kafka 는 lazy connect).
             # Kafka VM 셋업 후 ConfigMap 또는 env override.
           # request 는 실 사용량 기반 (CPU ~25m, memory ~400Mi, burst 여유 포함).
