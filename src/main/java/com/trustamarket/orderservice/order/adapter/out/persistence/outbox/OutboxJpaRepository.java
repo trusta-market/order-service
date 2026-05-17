@@ -13,8 +13,9 @@ public interface OutboxJpaRepository extends JpaRepository<OutboxJpaEntity, UUID
 
     // status='PENDING' 인 행을 오래된 순으로 fetch + 행 잠금 + 다른 트랜잭션 잠금 행은 skip.
     // 동일 created_at row 정렬 안정화 위해 id 보조 키.
+    // native query 라 hibernate.default_schema 미적용 — schema 명시 (p_order) 필수.
     @Query(value = """
-            SELECT * FROM p_order_outbox
+            SELECT * FROM p_order.p_order_outbox
             WHERE status = 'PENDING'
             ORDER BY created_at, id
             LIMIT :limit
