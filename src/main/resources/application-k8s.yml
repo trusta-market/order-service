@@ -32,10 +32,10 @@ spring:
     url: jdbc:postgresql://${DB_HOST:postgres}:5432/trusta_market
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-    # HikariCP pool — Cloud SQL max_connections=2500 안에서 6 service 통일 + product 만 2배 (120).
-    # 합 = 6 × 60 × 5 + 5 × 120 = 2400 / 2500 ✓.
+    # HikariCP pool — 8차 결과로 pool 60 은 GC pause + tail latency 폭증 (DB 한가, connection state heap 점유).
+    # 6차 sweet spot (pool 18) 으로 복귀.
     hikari:
-      maximum-pool-size: 60
+      maximum-pool-size: 18
   # Kafka — GKE namespace 'kafka' 의 StatefulSet 3 broker. 새 cluster (별도 CLUSTER_ID), 토픽 초기화됨.
   kafka:
     bootstrap-servers: kafka.kafka:9092
