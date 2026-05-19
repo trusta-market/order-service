@@ -65,7 +65,7 @@ class CreateOrderServiceTest {
         );
         when(productInfoPort.fetch(productId)).thenReturn(
                 new ProductInfo(productId, sellerId, "정공-상품명", 100_000L, "ON_SALE"));
-        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderRepository.saveNew(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         CreateOrderResult result = service.createOrder(cmd);
 
@@ -76,7 +76,7 @@ class CreateOrderServiceTest {
 
         // server snapshot 우선 검증 — sellerId / productName / productPrice 모두 product-service 진실값 사용 (client 입력 무시)
         ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
-        verify(orderRepository).save(captor.capture());
+        verify(orderRepository).saveNew(captor.capture());
         Order saved = captor.getValue();
         assertThat(saved.getSeller().id()).isEqualTo(sellerId);          // ProductInfo 의 sellerId
         assertThat(saved.getProduct().name()).isEqualTo("정공-상품명");    // ProductInfo 의 name (cmd 의 "client-claim-name" 아님)
@@ -100,6 +100,6 @@ class CreateOrderServiceTest {
         assertThatThrownBy(() -> service.createOrder(cmd))
                 .isInstanceOf(ProductNotPurchasableException.class);
 
-        verify(orderRepository, never()).save(any(Order.class));
+        verify(orderRepository, never()).saveNew(any(Order.class));
     }
 }
