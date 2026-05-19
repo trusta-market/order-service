@@ -12,6 +12,15 @@ spring:
     config:
       label: develop
       fail-fast: false
+    # Feign client timeout — 기본 무한 이라 wallet/product-service 응답 늦으면 호출 thread 가
+    # tx 안에서 connection 무한 hold → 1000 VU 부하 시 HikariCP pool 즉시 고갈 cascade.
+    # 5초 read timeout 으로 fail-fast → connection 빨리 반환.
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 1000
+            read-timeout: 5000
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}

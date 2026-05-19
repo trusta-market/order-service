@@ -20,13 +20,19 @@ import com.trustamarket.orderservice.order.domain.model.OrderId;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 // REQUESTED → PAYMENT_PENDING → (Wallet sync) → PAID
-// 잔액 부족 시: throw → @Transactional 자동 롤백 → REQUESTED 복귀 → 클라가 충전 후 재시도
+// Saga 분리: wallet feign call 이 tx 밖이라 connection hold X.
+//   [tx1] order load + requestPayment() — PAYMENT_PENDING commit (짧음, ~50ms)
+//   [no tx] walletPaymentPort.deduct() — Feign 호출 (응답 timeout 5초까지 wait, connection 없음)
+//   [tx2] 성공: markPaid() + outbox publish (commit)
+//          실패: rollbackPaymentRequest() — PAYMENT_PENDING → REQUESTED (보상)
+//
+// 보상 실패 시 (tx2 의 rollback 자체가 fail) order 가 PAYMENT_PENDING 으로 stuck.
+// → 별도 reconciliation job 필요 (현재 미구현, follow-up).
 //
 // Idempotency-Key 검증: RequestPaymentCommand compact constructor 가 NotBlank 보장.
-// 따라서 본 메서드는 cmd.idempotencyKey() 가 항상 non-blank 라고 가정.
 @Service
 @RequiredArgsConstructor
 public class RequestPaymentService implements RequestPaymentUseCase {
@@ -37,9 +43,9 @@ public class RequestPaymentService implements RequestPaymentUseCase {
     private final OrderHistoryRecorder historyRecorder;
     private final WalletPaymentPort walletPaymentPort;
     private final InboxRepository inboxRepository;
+    private final TransactionTemplate txTemplate;
 
     @Override
-    @Transactional
     public void requestPayment(RequestPaymentCommand cmd) {
         // 멱등성 — atomic INSERT 시도. 이미 처리된 키면 false 반환 → no-op.
         // (REQUIRES_NEW 트랜잭션이라 충돌 시 부모 트랜잭션 영향 없음.)
@@ -47,62 +53,78 @@ public class RequestPaymentService implements RequestPaymentUseCase {
             return;
         }
 
-        Order order = orderRepository.findByIdOrThrow(OrderId.of(cmd.orderId()));
-        OrderAccessGuard.verifyBuyer(order, cmd.buyerId());
+        OrderId orderId = OrderId.of(cmd.orderId());
 
-        OrderStatus pre = order.getStatus();
-        order.requestPayment();   // REQUESTED → PAYMENT_PENDING
-        historyRecorder.record(order.getId(), pre, order.getStatus(), null);
+        // ── [tx1] 짧은 DB UPDATE: REQUESTED → PAYMENT_PENDING ──
+        Long totalAmount = txTemplate.execute(status -> {
+            Order order = orderRepository.findByIdOrThrow(orderId);
+            OrderAccessGuard.verifyBuyer(order, cmd.buyerId());
 
-        DeductPointResponse res = callWallet(cmd, order);
+            OrderStatus pre = order.getStatus();
+            order.requestPayment();
+            historyRecorder.record(order.getId(), pre, order.getStatus(), null);
+            orderRepository.save(order);
+            return order.getTotalAmount().value();
+        });
+
+        // ── [no tx] Wallet Feign 호출 (DB connection 없음) ──
+        DeductPointResponse res;
+        try {
+            res = walletPaymentPort.deduct(
+                    new DeductPointRequest(cmd.orderId(), cmd.buyerId(), totalAmount)
+            );
+            if (res == null) {
+                compensateToRequested(orderId);
+                throw new WalletCommunicationException();
+            }
+        } catch (com.trustamarket.orderservice.order.domain.exception.OrderException e) {
+            compensateToRequested(orderId);
+            throw e;
+        } catch (RuntimeException e) {
+            compensateToRequested(orderId);
+            throw new WalletCommunicationException(e);
+        }
+
         if (!res.isSuccess()) {
+            compensateToRequested(orderId);
             throw new InsufficientPointBalanceException(
-                    order.getTotalAmount().value(),
+                    totalAmount,
                     res.balance() == null ? 0 : res.balance(),
                     res.shortage()
             );
         }
 
-        // Wallet 성공 → 즉시 PAID 전이.
-        OrderStatus prePaid = order.getStatus();
-        order.markPaid();
-        historyRecorder.record(order.getId(), prePaid, order.getStatus(), null);
+        // ── [tx2] 짧은 DB UPDATE: PAYMENT_PENDING → PAID + outbox publish ──
+        txTemplate.execute(status -> {
+            Order order = orderRepository.findByIdOrThrow(orderId);
+            OrderStatus prePaid = order.getStatus();
+            order.markPaid();
+            historyRecorder.record(order.getId(), prePaid, order.getStatus(), null);
+            orderRepository.save(order);
 
-        orderRepository.save(order);
-
-        Events.trigger(OutboxEvent.of(
-                DOMAIN_TYPE, order.getId().value(),
-                OrderEventTypes.ORDER_PAID,
-                OrderPaidMessage.of(
-                        order.getId().value(),
-                        order.getProduct().id(),
-                        order.getSeller().id(),
-                        order.getBuyer().id(),
-                        order.getType().name())));
-
-        // 멱등성 키는 진입부 tryRecordIdempotencyKey 에서 이미 INSERT 됨.
-        // 본 트랜잭션이 rollback 되면 inbox 도 같이 rollback 되어야 하는데, REQUIRES_NEW 라 분리됨 →
-        // wallet 차감 실패 등으로 이 메서드가 throw 시 inbox 만 남는 케이스 발생 가능.
-        // 트레이드오프: TOCTOU race 차단을 우선. 잔여 inbox row 는 결과 없이 멱등성 키만 점유 → 동일 키 재시도 시 단순 no-op (의도된 동작).
-        // 정산 발행은 ConfirmOrderService 로 이동 (구매 확정 후 분배).
+            Events.trigger(OutboxEvent.of(
+                    DOMAIN_TYPE, order.getId().value(),
+                    OrderEventTypes.ORDER_PAID,
+                    OrderPaidMessage.of(
+                            order.getId().value(),
+                            order.getProduct().id(),
+                            order.getSeller().id(),
+                            order.getBuyer().id(),
+                            order.getType().name())));
+            return null;
+        });
     }
 
-    // Wallet 동기 호출 + null 응답/예외를 도메인 예외로 일관 변환.
-    // 도메인 예외 (OrderException 상속) 는 검증/비즈니스 오류라 그대로 전파.
-    // 그 외 RuntimeException (통신 장애, NPE 등) 만 WalletCommunicationException 으로 변환.
-    private DeductPointResponse callWallet(RequestPaymentCommand cmd, Order order) {
-        try {
-            DeductPointResponse res = walletPaymentPort.deduct(
-                    new DeductPointRequest(cmd.orderId(), cmd.buyerId(), order.getTotalAmount().value())
-            );
-            if (res == null) {
-                throw new WalletCommunicationException();
-            }
-            return res;
-        } catch (com.trustamarket.orderservice.order.domain.exception.OrderException e) {
-            throw e;
-        } catch (RuntimeException e) {
-            throw new WalletCommunicationException(e);
-        }
+    // Saga 보상 — PAYMENT_PENDING → REQUESTED 복귀.
+    // 본 트랜잭션은 항상 commit 시도. 실패 시 order 가 PAYMENT_PENDING 으로 stuck → reconciliation job 으로 복구 (follow-up).
+    private void compensateToRequested(OrderId orderId) {
+        txTemplate.execute(status -> {
+            Order order = orderRepository.findByIdOrThrow(orderId);
+            OrderStatus pre = order.getStatus();
+            order.rollbackPaymentRequest();
+            historyRecorder.record(order.getId(), pre, order.getStatus(), null);
+            orderRepository.save(order);
+            return null;
+        });
     }
 }

@@ -245,6 +245,13 @@ public class Order {
         this.status = OrderTransition.apply(this.status, OrderAction.REQUEST_PAYMENT);
     }
 
+    // PAYMENT_PENDING → REQUESTED (saga 보상)
+    // Wallet 호출 실패 / 잔액 부족 / null 응답 시 결제 시도 전 상태로 복귀.
+    // 클라가 다시 결제 시도 가능 (멱등성 키는 inbox 에 잔류 → 동일 키는 no-op).
+    public void rollbackPaymentRequest() {
+        this.status = OrderTransition.apply(this.status, OrderAction.ROLLBACK_PAYMENT);
+    }
+
     // PAYMENT_PENDING → PAID
     // Wallet의 PaymentCompleted 이벤트 수신 시
     public void markPaid() {

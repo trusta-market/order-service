@@ -4,6 +4,7 @@ package com.trustamarket.orderservice.order.domain.model;
 public enum OrderAction {
 
     REQUEST_PAYMENT,      // REQUESTED → PAYMENT_PENDING
+    ROLLBACK_PAYMENT,     // PAYMENT_PENDING → REQUESTED (wallet 호출 실패 시 saga 보상)
     MARK_PAID,            // PAYMENT_PENDING → PAID
     START_SHIPPING,       // PAID → SHIPPING
     MARK_DELIVERED,       // SHIPPING → DELIVERED

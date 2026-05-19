@@ -13,28 +13,18 @@ import com.trustamarket.orderservice.order.domain.model.Order;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
 import com.trustamarket.orderservice.order.domain.model.Product;
 import com.trustamarket.orderservice.order.domain.model.Seller;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
+@RequiredArgsConstructor
 public class CreateOrderService implements CreateOrderUseCase {
 
     private final OrderRepository orderRepository;
     private final OrderHistoryRecorder historyRecorder;
     private final ProductInfoPort productInfoPort;
     private final TransactionTemplate txTemplate;
-
-    public CreateOrderService(
-            OrderRepository orderRepository,
-            OrderHistoryRecorder historyRecorder,
-            ProductInfoPort productInfoPort,
-            PlatformTransactionManager txManager) {
-        this.orderRepository = orderRepository;
-        this.historyRecorder = historyRecorder;
-        this.productInfoPort = productInfoPort;
-        this.txTemplate = new TransactionTemplate(txManager);
-    }
 
     @Override
     public CreateOrderResult createOrder(CreateOrderCommand cmd) {
