@@ -50,8 +50,6 @@ dependencies {
 	implementation 'io.github.openfeign:feign-hc5'
 	implementation 'org.springframework.kafka:spring-kafka'
 	implementation 'org.liquibase:liquibase-core'
-	// caffeine — in-JVM cache (ProductInfoCachePort adapter 구현). 나중에 Redis adapter 추가 시 같은 port.
-	implementation 'com.github.ben-manes.caffeine:caffeine'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.postgresql:postgresql'
 	annotationProcessor 'org.projectlombok:lombok'
