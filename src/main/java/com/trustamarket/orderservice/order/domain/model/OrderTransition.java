@@ -12,6 +12,7 @@ import static com.trustamarket.orderservice.order.domain.model.OrderAction.MARK_
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.MARK_CANCELLED;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.REJECT_RETURN;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.REQUEST_PAYMENT;
+import static com.trustamarket.orderservice.order.domain.model.OrderAction.ROLLBACK_PAYMENT;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.REQUEST_RETURN;
 import static com.trustamarket.orderservice.order.domain.model.OrderAction.START_SHIPPING;
 import static com.trustamarket.orderservice.order.domain.model.OrderStatus.CANCELLED;
@@ -40,6 +41,7 @@ public final class OrderTransition {
             // Happy path — REQUESTED부터 CONFIRMED까지. CONFIRMED가 거래 종결
             // Map.entry((현재상태+액션) -> 다음 상태)
             Map.entry(new Key(REQUESTED,             REQUEST_PAYMENT),  PAYMENT_PENDING),
+            Map.entry(new Key(PAYMENT_PENDING,       ROLLBACK_PAYMENT), REQUESTED),
             Map.entry(new Key(PAYMENT_PENDING,       MARK_PAID),        PAID),
             Map.entry(new Key(PAID,                  START_SHIPPING),   SHIPPING),
             Map.entry(new Key(SHIPPING,              MARK_DELIVERED),   DELIVERED),
