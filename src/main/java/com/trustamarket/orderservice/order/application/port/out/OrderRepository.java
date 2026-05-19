@@ -14,7 +14,15 @@ import java.util.UUID;
 public interface OrderRepository {
 
     // Command
+
+    // 기존 entity 업데이트 (merge — JPA 가 SELECT 후 변경 여부 판단 → UPDATE 또는 INSERT).
+    // findById 로 가져온 managed entity 갱신에 사용.
     Order save(Order order);
+
+    // 신규 entity 명시적 INSERT (persist — SELECT skip).
+    // PK 가 도메인에서 미리 생성 (OrderId.generate) 되는 케이스만 안전.
+    // 사용처: CreateOrderService 의 신규 주문 INSERT.
+    Order saveNew(Order order);
 
     Optional<Order> findById(OrderId id);
 

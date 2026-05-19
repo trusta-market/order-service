@@ -6,6 +6,8 @@ import com.trustamarket.orderservice.order.application.port.in.OrderSearchCriter
 import com.trustamarket.orderservice.order.domain.exception.OrderNotFoundException;
 import com.trustamarket.orderservice.order.domain.model.Order;
 import com.trustamarket.orderservice.order.domain.model.OrderId;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,15 +29,27 @@ public class OrderJpaRepositoryAdapter implements OrderRepository {
     private final OrderJpaRepository jpaRepository;
     private final OrderMapper mapper;
 
-    // TODO: PK가 도메인에서 미리 생성되고 mapper가 매번 새 entity를 만드는 패턴이라
-    //  JpaRepository.save()가 항상 merge() 타고 SELECT가 1회 추가
-    //  Persistable<UUID> 구현은 동일 트랜잭션 내 재저장 시 세션 충돌 발생
-    //  use case 흐름 정리되면서 함께 최적화 (findById → 도메인 행위 → 트랜잭션 dirty checking 패턴 검토)
+    // EntityManager 는 @PersistenceContext 로 field injection (RequiredArgsConstructor 와 호환).
+    // saveNew() 에서 persist() 직접 호출 시 사용.
+    @PersistenceContext
+    private EntityManager em;
+
+    // 기존 entity merge — findById 로 가져온 managed entity 갱신 시 사용.
+    // 신규 INSERT 시엔 saveNew() 사용 (SELECT 1회 절감).
     @Override
     public Order save(Order order) {
         OrderJpaEntity entity = mapper.toEntity(order);
         OrderJpaEntity saved = jpaRepository.save(entity);
         return mapper.toDomain(saved);
+    }
+
+    // 신규 entity 명시적 persist — JpaRepository.save() 의 merge 경로 (SELECT 1회) 회피.
+    // PK 가 도메인에서 미리 생성 (OrderId.generate) 되어 detached 가 아니라 new 임이 보장됨.
+    @Override
+    public Order saveNew(Order order) {
+        OrderJpaEntity entity = mapper.toEntity(order);
+        em.persist(entity);
+        return mapper.toDomain(entity);
     }
 
     @Override

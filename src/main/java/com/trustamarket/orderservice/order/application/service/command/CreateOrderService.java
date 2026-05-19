@@ -44,7 +44,9 @@ public class CreateOrderService implements CreateOrderUseCase {
                     cmd.type(),
                     Money.of(cmd.shippingFee())
             );
-            Order saved = orderRepository.save(order);
+            // 신규 주문 — PK 가 Order.create() 시점에 OrderId.generate() 로 미리 생성됨.
+            // saveNew() 사용해서 JpaRepository.save() 의 merge 경로 (SELECT 1회) 회피.
+            Order saved = orderRepository.saveNew(order);
             historyRecorder.record(saved.getId(), null, OrderStatus.REQUESTED, null);
             return CreateOrderResult.from(saved);
         });
