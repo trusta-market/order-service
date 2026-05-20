@@ -50,6 +50,8 @@ trusta:
       order-cancellation-requested:   order.cancellation.requested
       wallet-cancellation-completed:  wallet.cancellation.completed
       order-paid:                     order.paid
+  swagger:
+    expose-public: ${TRUSTA_SWAGGER_EXPOSE_PUBLIC:true}
 
 management:
   endpoint:
