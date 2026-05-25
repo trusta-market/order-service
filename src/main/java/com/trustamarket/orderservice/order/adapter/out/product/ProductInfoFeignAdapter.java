@@ -6,6 +6,7 @@ import com.trustamarket.orderservice.order.domain.exception.ProductLookupExcepti
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -22,12 +23,12 @@ public class ProductInfoFeignAdapter implements ProductInfoPort {
     @Override
     public ProductInfo fetch(UUID productId) {
         try {
-            CommonResponse<ProductFeignClient.ProductInfoFeignResponse> resp =
+            ResponseEntity<CommonResponse<ProductFeignClient.ProductInfoFeignResponse>> resp =
                     feignClient.getProductInfo(productId);
-            if (resp == null || resp.data() == null) {
+            if (resp.getBody() == null || resp.getBody().data() == null) {
                 throw new ProductLookupException(productId);
             }
-            ProductFeignClient.ProductInfoFeignResponse data = resp.data();
+            ProductFeignClient.ProductInfoFeignResponse data = resp.getBody().data();
             // 외부 응답 엄격 검증 — 필수 필드 누락/비정상 시 fail-fast (금액 0 변환 같은 silent corruption 차단)
             if (data.id() == null
                     || !productId.equals(data.id())
