@@ -43,6 +43,17 @@ class ProductInfoFeignAdapterTest {
     }
 
     @Test
+    @DisplayName("ResponseEntity 자체 null — ProductLookupException")
+    void fetch_nullResponse() {
+        UUID productId = UUID.randomUUID();
+        when(feignClient.getProductInfo(productId))
+                .thenReturn(null);
+
+        assertThatThrownBy(() -> adapter.fetch(productId))
+                .isInstanceOf(ProductLookupException.class);
+    }
+
+    @Test
     @DisplayName("body null — ProductLookupException")
     void fetch_nullBody() {
         UUID productId = UUID.randomUUID();

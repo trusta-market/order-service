@@ -25,7 +25,7 @@ public class ProductInfoFeignAdapter implements ProductInfoPort {
         try {
             ResponseEntity<CommonResponse<ProductFeignClient.ProductInfoFeignResponse>> resp =
                     feignClient.getProductInfo(productId);
-            if (resp.getBody() == null || resp.getBody().data() == null) {
+            if (resp == null || resp.getBody() == null || resp.getBody().data() == null) {
                 throw new ProductLookupException(productId);
             }
             ProductFeignClient.ProductInfoFeignResponse data = resp.getBody().data();

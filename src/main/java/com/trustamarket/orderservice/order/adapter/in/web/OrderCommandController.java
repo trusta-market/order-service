@@ -17,6 +17,7 @@ import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUse
 import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUseCase.RequestPaymentCommand;
 import com.trustamarket.orderservice.order.application.port.in.RequestReturnUseCase;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -59,7 +60,7 @@ public class OrderCommandController {
     @PreAuthorize("hasRole('MEMBER')")
     public ResponseEntity<Void> requestPayment(
             @PathVariable UUID orderId,
-            @RequestHeader("Idempotency-Key") String idempotencyKey
+            @RequestHeader("Idempotency-Key") @NotBlank String idempotencyKey
     ) {
         UUID buyerId = SecurityUtil.getCurrentUserIdOrThrow();
         requestPaymentUseCase.requestPayment(new RequestPaymentCommand(orderId, buyerId, idempotencyKey));

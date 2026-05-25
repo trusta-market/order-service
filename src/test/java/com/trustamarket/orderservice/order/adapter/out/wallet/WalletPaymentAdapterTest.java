@@ -41,6 +41,16 @@ class WalletPaymentAdapterTest {
     }
 
     @Test
+    @DisplayName("ResponseEntity 자체 null — WalletCommunicationException")
+    void deduct_nullResponse() {
+        when(walletFeignClient.usePoint(any()))
+                .thenReturn(null);
+
+        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), 100L)))
+                .isInstanceOf(WalletCommunicationException.class);
+    }
+
+    @Test
     @DisplayName("body null — WalletCommunicationException")
     void deduct_nullBody() {
         when(walletFeignClient.usePoint(any()))
@@ -55,6 +65,28 @@ class WalletPaymentAdapterTest {
     void deduct_nullData() {
         when(walletFeignClient.usePoint(any()))
                 .thenReturn(ResponseEntity.ok(CommonResponse.of(200, null)));
+
+        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), 100L)))
+                .isInstanceOf(WalletCommunicationException.class);
+    }
+
+    @Test
+    @DisplayName("음수 balance — WalletCommunicationException")
+    void deduct_negativeBalance() {
+        var walletResp = new WalletFeignClient.UseWalletResponse(-100L, null);
+        when(walletFeignClient.usePoint(any()))
+                .thenReturn(ResponseEntity.ok(CommonResponse.of(200, walletResp)));
+
+        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), 100L)))
+                .isInstanceOf(WalletCommunicationException.class);
+    }
+
+    @Test
+    @DisplayName("음수 shortage — WalletCommunicationException")
+    void deduct_negativeShortage() {
+        var walletResp = new WalletFeignClient.UseWalletResponse(0L, -500L);
+        when(walletFeignClient.usePoint(any()))
+                .thenReturn(ResponseEntity.ok(CommonResponse.of(200, walletResp)));
 
         assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), 100L)))
                 .isInstanceOf(WalletCommunicationException.class);

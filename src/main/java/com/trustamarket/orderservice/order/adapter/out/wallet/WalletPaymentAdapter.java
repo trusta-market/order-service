@@ -29,9 +29,15 @@ public class WalletPaymentAdapter implements WalletPaymentPort {
                             request.totalAmount()
                     )
             );
-            WalletFeignClient.UseWalletResponse data = response.getBody() != null ? response.getBody().data() : null;
-            if (data == null) {
-                log.error("[Wallet] 빈 응답 — orderId={}", request.orderId());
+            CommonResponse<WalletFeignClient.UseWalletResponse> body =
+                    response != null ? response.getBody() : null;
+            WalletFeignClient.UseWalletResponse data =
+                    body != null ? body.data() : null;
+            if (data == null
+                    || data.balance() == null
+                    || data.balance() < 0L
+                    || (data.shortage() != null && data.shortage() < 0L)) {
+                log.error("[Wallet] 빈/비정상 응답 — orderId={}", request.orderId());
                 throw new WalletCommunicationException();
             }
             return new DeductPointResponse(data.balance(), data.shortage());
