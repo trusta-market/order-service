@@ -2,6 +2,7 @@ package com.trustamarket.orderservice.order.adapter.out.product;
 
 import com.trustamarket.common.response.CommonResponse;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
@@ -13,7 +14,7 @@ import java.util.UUID;
 public interface ProductFeignClient {
 
     @GetMapping("/internal/v1/products/{productId}")
-    CommonResponse<ProductInfoFeignResponse> getProductInfo(@PathVariable UUID productId);
+    ResponseEntity<CommonResponse<ProductInfoFeignResponse>> getProductInfo(@PathVariable UUID productId);
 
     // product-service 의 ProductInfoResponse 와 1:1 매칭 (필드명/순서/타입).
     // price 는 product-service 가 Integer — order 측은 long 받음 (자동 widening).

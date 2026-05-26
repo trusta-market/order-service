@@ -6,6 +6,7 @@ import com.trustamarket.orderservice.order.domain.exception.WalletCommunicationE
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
 // WalletPaymentPort 실 구현 — Feign 으로 wallet-service 의 /internal/v1/wallets/usages 호출.
@@ -21,16 +22,22 @@ public class WalletPaymentAdapter implements WalletPaymentPort {
     @Override
     public DeductPointResponse deduct(DeductPointRequest request) {
         try {
-            CommonResponse<WalletFeignClient.UseWalletResponse> response = walletFeignClient.usePoint(
+            ResponseEntity<CommonResponse<WalletFeignClient.UseWalletResponse>> response = walletFeignClient.usePoint(
                     new WalletFeignClient.UseWalletRequest(
                             request.orderId(),
                             request.buyerId(),
                             request.totalAmount()
                     )
             );
-            WalletFeignClient.UseWalletResponse data = response.data();
-            if (data == null) {
-                log.error("[Wallet] 빈 응답 — orderId={}", request.orderId());
+            CommonResponse<WalletFeignClient.UseWalletResponse> body =
+                    response != null ? response.getBody() : null;
+            WalletFeignClient.UseWalletResponse data =
+                    body != null ? body.data() : null;
+            if (data == null
+                    || data.balance() == null
+                    || data.balance() < 0L
+                    || (data.shortage() != null && data.shortage() < 0L)) {
+                log.error("[Wallet] 빈/비정상 응답 — orderId={}", request.orderId());
                 throw new WalletCommunicationException();
             }
             return new DeductPointResponse(data.balance(), data.shortage());

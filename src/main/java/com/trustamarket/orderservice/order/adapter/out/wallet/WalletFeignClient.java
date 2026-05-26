@@ -2,6 +2,7 @@ package com.trustamarket.orderservice.order.adapter.out.wallet;
 
 import com.trustamarket.common.response.CommonResponse;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -13,7 +14,7 @@ import java.util.UUID;
 public interface WalletFeignClient {
 
     @PatchMapping("/internal/v1/wallets/usages")
-    CommonResponse<UseWalletResponse> usePoint(@RequestBody UseWalletRequest request);
+    ResponseEntity<CommonResponse<UseWalletResponse>> usePoint(@RequestBody UseWalletRequest request);
 
     // wallet-service 의 UseWalletRequest 와 동일 필드명/타입.
     record UseWalletRequest(
