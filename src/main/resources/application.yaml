@@ -1,64 +1,11 @@
 spring:
   application:
     name: order-service
-
   profiles:
-    default: local
-
+    active: ${SPRING_PROFILES_ACTIVE:local}
   config:
-    import: "optional:configserver:http://localhost:8888"
-
+    import: ${SPRING_CONFIG_IMPORT:optional:configserver:http://localhost:8888}
   cloud:
     config:
-      label: develop
-      fail-fast: false
-    # Feign client timeout — 기본 무한 이라 wallet/product-service 응답 늦으면 호출 thread 가
-    # tx 안에서 connection 무한 hold → 1000 VU 부하 시 HikariCP pool 즉시 고갈 cascade.
-    # 5초 read timeout 으로 fail-fast → connection 빨리 반환.
-    openfeign:
-      client:
-        config:
-          default:
-            connect-timeout: 1000
-            read-timeout: 5000
-
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
-    # producer 는 outbox poller 만 사용 (도메인 코드는 Events.trigger 통과).
-    # outbox 가 payload 를 이미 JSON 문자열로 갖고 있어서 StringSerializer 로 그대로 송신.
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
-    # consumer — listener 가 String 받아서 ObjectMapper 로 record 변환 (토픽별 다른 record 타입 대응).
-    listener:
-      ack-mode: manual
-    consumer:
-      auto-offset-reset: earliest
-      enable-auto-commit: false
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-
-# trusta.security.trust-gateway-headers 와 spring.main.allow-bean-definition-overriding 은
-# 보안/충돌 방지를 위해 default = false 유지. local/dev 프로파일에서만 명시적으로 true 활성화.
-trusta:
-  messaging:
-    topic:
-      settlement-requested:           order.wallet-settlement.requested
-      product-sold-out:               order.product.sold-out
-      delivery-started:               delivery.started
-      delivery-completed:             delivery.completed
-      order-cancellation-requested:   order.cancellation.requested
-      wallet-cancellation-completed:  wallet.cancellation.completed
-      order-paid:                     order.paid
-  swagger:
-    expose-public: ${TRUSTA_SWAGGER_EXPOSE_PUBLIC:true}
-
-management:
-  endpoint:
-    health:
-      probes:
-        enabled: true
-  endpoints:
-    web:
-      exposure:
-        include: health, info, prometheus
+      label: ${SPRING_CLOUD_CONFIG_LABEL:develop}
+      fail-fast: ${SPRING_CLOUD_CONFIG_FAIL_FAST:false}

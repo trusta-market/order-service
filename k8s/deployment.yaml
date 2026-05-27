@@ -46,7 +46,9 @@ spec:
             - containerPort: 8103
           env:
             - name: SPRING_PROFILES_ACTIVE
-              value: "k8s"
+              value: "dev"
+            - name: SPRING_CONFIG_IMPORT
+              value: "configserver:http://config-server"
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -57,7 +59,7 @@ spec:
                 secretKeyRef:
                   name: domain-postgres-secrets
                   key: DB_PASSWORD
-            # DB_HOST — Cloud SQL Private IP (Secret 에서 주입). application-k8s.yml 의 ${DB_HOST:postgres} 와 대응.
+            # DB_HOST — Cloud SQL Private IP (Secret 에서 주입). application-k8s.yaml 의 ${DB_HOST:postgres} 와 대응.
             - name: DB_HOST
               valueFrom:
                 secretKeyRef:
