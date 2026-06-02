@@ -5,13 +5,18 @@ import com.trustamarket.orderservice.order.application.port.in.RequestPaymentUse
 import com.trustamarket.orderservice.order.application.port.out.InboxRepository;
 import com.trustamarket.orderservice.order.application.port.out.InboxRepository.InboxPurposeKey;
 import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
+import com.trustamarket.orderservice.order.application.port.out.PaymentReconciliationRepository;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort;
 import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort.DeductPointResponse;
+import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort.UsageStatus;
 import com.trustamarket.orderservice.order.application.service.OrderTestFixtures;
 import com.trustamarket.orderservice.order.application.service.support.OrderHistoryRecorder;
 import com.trustamarket.orderservice.order.domain.exception.InsufficientPointBalanceException;
+import com.trustamarket.orderservice.order.domain.exception.PaymentVerificationPendingException;
+import com.trustamarket.orderservice.order.domain.exception.WalletCommunicationException;
 import com.trustamarket.orderservice.order.domain.model.Order;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
+import com.trustamarket.orderservice.order.domain.model.PaymentReconciliation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,6 +45,7 @@ class RequestPaymentServiceTest {
     @Mock OrderHistoryRecorder historyRecorder;
     @Mock WalletPaymentPort walletPaymentPort;
     @Mock InboxRepository inboxRepository;
+    @Mock PaymentReconciliationRepository reconciliationRepository;
     @Mock TransactionTemplate txTemplate;
     @InjectMocks RequestPaymentService service;
 
@@ -124,6 +130,92 @@ class RequestPaymentServiceTest {
         verify(walletPaymentPort, never()).deduct(any());
         verify(historyRecorder, never()).record(any(), any(), any(), any());
         verify(orderRepository, never()).save(any());
+    }
+
+    // ── 비정상 응답 (timeout / 5xx) — getUsage 재확인 분기 ──
+
+    @Test
+    @DisplayName("wallet timeout → getUsage=DEDUCTED → PAID 진행")
+    void unknown_thenDeducted() {
+        UUID buyerId = UUID.randomUUID();
+        String idempotencyKey = UUID.randomUUID().toString();
+        Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
+        when(inboxRepository.tryRecordIdempotencyKey(idempotencyKey, InboxPurposeKey.REQUEST_PAYMENT)).thenReturn(true);
+        when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
+        when(walletPaymentPort.deduct(any())).thenThrow(new WalletCommunicationException());
+        when(walletPaymentPort.getUsage(order.getId().value())).thenReturn(
+                new UsageStatus(order.getId().value(), UsageStatus.Result.DEDUCTED,
+                        100_000L, 50_000L, null, java.time.Instant.now()));
+
+        service.requestPayment(new RequestPaymentCommand(order.getId().value(), buyerId, idempotencyKey));
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+        // PAYMENT_PENDING save + PAID save = 2번 (rollback 없음)
+        verify(orderRepository, times(2)).save(order);
+    }
+
+    @Test
+    @DisplayName("wallet timeout → getUsage=INSUFFICIENT → InsufficientPointBalanceException + REQUESTED 복귀")
+    void unknown_thenInsufficient() {
+        UUID buyerId = UUID.randomUUID();
+        String idempotencyKey = UUID.randomUUID().toString();
+        Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
+        when(inboxRepository.tryRecordIdempotencyKey(idempotencyKey, InboxPurposeKey.REQUEST_PAYMENT)).thenReturn(true);
+        when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
+        when(walletPaymentPort.deduct(any())).thenThrow(new WalletCommunicationException());
+        when(walletPaymentPort.getUsage(order.getId().value())).thenReturn(
+                new UsageStatus(order.getId().value(), UsageStatus.Result.INSUFFICIENT,
+                        null, 5_000L, 95_000L, null));
+
+        assertThatThrownBy(() ->
+                service.requestPayment(new RequestPaymentCommand(order.getId().value(), buyerId, idempotencyKey))
+        ).isInstanceOf(InsufficientPointBalanceException.class);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REQUESTED);
+        verify(orderRepository, times(2)).save(any(Order.class));
+    }
+
+    @Test
+    @DisplayName("wallet timeout → getUsage=NOT_FOUND → WalletCommunicationException + REQUESTED 복귀")
+    void unknown_thenNotFound() {
+        UUID buyerId = UUID.randomUUID();
+        String idempotencyKey = UUID.randomUUID().toString();
+        Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
+        when(inboxRepository.tryRecordIdempotencyKey(idempotencyKey, InboxPurposeKey.REQUEST_PAYMENT)).thenReturn(true);
+        when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
+        when(walletPaymentPort.deduct(any())).thenThrow(new WalletCommunicationException());
+        when(walletPaymentPort.getUsage(order.getId().value())).thenReturn(
+                new UsageStatus(order.getId().value(), UsageStatus.Result.NOT_FOUND,
+                        null, null, null, null));
+
+        assertThatThrownBy(() ->
+                service.requestPayment(new RequestPaymentCommand(order.getId().value(), buyerId, idempotencyKey))
+        ).isInstanceOf(WalletCommunicationException.class);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REQUESTED);
+        verify(orderRepository, times(2)).save(any(Order.class));
+    }
+
+    @Test
+    @DisplayName("wallet timeout → getUsage 도 실패 → reconciliation enqueue + PaymentVerificationPendingException")
+    void unknown_verifyAlsoFails() {
+        UUID buyerId = UUID.randomUUID();
+        String idempotencyKey = UUID.randomUUID().toString();
+        Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
+        when(inboxRepository.tryRecordIdempotencyKey(idempotencyKey, InboxPurposeKey.REQUEST_PAYMENT)).thenReturn(true);
+        when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
+        when(walletPaymentPort.deduct(any())).thenThrow(new WalletCommunicationException());
+        when(walletPaymentPort.getUsage(order.getId().value())).thenThrow(new WalletCommunicationException());
+
+        assertThatThrownBy(() ->
+                service.requestPayment(new RequestPaymentCommand(order.getId().value(), buyerId, idempotencyKey))
+        ).isInstanceOf(PaymentVerificationPendingException.class);
+
+        // PAYMENT_PENDING 으로 남음 (rollback X)
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAYMENT_PENDING);
+        verify(reconciliationRepository).enqueueIfAbsent(any(PaymentReconciliation.class));
+        // PAYMENT_PENDING save 만, rollback save 없음
+        verify(orderRepository, times(1)).save(order);
     }
 
     @Test
