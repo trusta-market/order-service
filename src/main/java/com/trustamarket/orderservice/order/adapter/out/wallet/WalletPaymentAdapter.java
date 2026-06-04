@@ -51,8 +51,8 @@ public class WalletPaymentAdapter implements WalletPaymentPort {
     }
 
     // saga catch / reconciliation scheduler 에서 호출.
-    // wallet 측 GET /internal/v1/wallets/usages/{orderId}.
-    // 응답 result 가 "DEDUCTED" 또는 "NOT_DEDUCTED" — 그 외 값 / null 은 비정상 응답으로 본다.
+    // wallet 측 GET /internal/v1/wallets/usages?orderId=...
+    // 응답 result 가 "DEDUCTED" / "INSUFFICIENT" / "NOT_FOUND" — 그 외 값 / null 은 비정상 응답으로 본다.
     // 통신 실패는 WalletCommunicationException → 호출자가 UNKNOWN 으로 분기 (DB queue).
     @Override
     public UsageStatus getUsage(UUID orderId) {

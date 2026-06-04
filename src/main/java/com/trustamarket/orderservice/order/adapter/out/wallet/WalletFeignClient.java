@@ -19,8 +19,11 @@ public interface WalletFeignClient {
     @PatchMapping("/internal/v1/wallets/usages")
     ResponseEntity<CommonResponse<UseWalletResponse>> usePoint(@RequestBody UseWalletRequest request);
 
-    // saga 의 catch / reconciliation scheduler 가 호출 — orderId 로 차감 기록 조회.
-    // wallet 측은 DB 만 읽음 (멱등). 차감 기록 있으면 DEDUCTED, 거절 기록 있으면 INSUFFICIENT, 없으면 NOT_FOUND.
+    // saga 의 catch / reconciliation scheduler 가 호출 — orderId 로 거래 기록 조회.
+    // wallet 측은 DB 만 읽음 (멱등).
+    //   차감 기록 있음 → DEDUCTED
+    //   거절 기록 있음 → INSUFFICIENT (잔액 부족으로 wallet 이 받아 거절)
+    //   기록 없음     → NOT_FOUND (요청 자체가 wallet 에 안 닿음)
     // orderId 는 query parameter — 단건 조회지만 wallet 팀과의 컨벤션상 path 대신 query 사용.
     @GetMapping("/internal/v1/wallets/usages")
     ResponseEntity<CommonResponse<UsageStatusResponse>> getUsage(@RequestParam("orderId") UUID orderId);

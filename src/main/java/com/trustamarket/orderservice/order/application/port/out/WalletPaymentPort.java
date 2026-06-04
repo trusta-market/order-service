@@ -16,7 +16,10 @@ public interface WalletPaymentPort {
     // 취소 흐름은 sync 호출이 아닌 Kafka (order.cancellation.requested) 로 진행 — 본 port 와 무관.
 
     // saga 의 wallet 차감 호출이 timeout / 5xx 등 비정상 응답을 받았을 때 결과 확인용.
-    // wallet 측은 DB 만 조회 (멱등). 차감 기록 있으면 DEDUCTED, 없으면 NOT_DEDUCTED.
+    // wallet 측은 DB 만 조회 (멱등).
+    //   차감 기록 있음 → DEDUCTED
+    //   거절 기록 있음 → INSUFFICIENT (잔액 부족 거절)
+    //   기록 없음     → NOT_FOUND
     // wallet 자체가 응답 못 하는 케이스 (또 timeout / 5xx) 는 Adapter 가 RuntimeException → 호출자가 UNKNOWN 처리.
     UsageStatus getUsage(UUID orderId);
 
@@ -57,6 +60,13 @@ public interface WalletPaymentPort {
             Long shortage,
             Instant deductedAt
     ) {
+        // 필수 필드 (orderId / result) 만 검증 — 그 외는 result 에 따라 nullable.
+        // 호출부 (saga catch / Processor) 가 switch(usage.result()) 로 분기하므로 null 차단 필수.
+        public UsageStatus {
+            if (orderId == null) throw new InvalidIdException("orderId");
+            if (result == null) throw new InvalidIdException("result");
+        }
+
         public boolean isDeducted() {
             return result == Result.DEDUCTED;
         }

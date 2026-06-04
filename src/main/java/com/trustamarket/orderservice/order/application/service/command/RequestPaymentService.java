@@ -151,6 +151,9 @@ public class RequestPaymentService implements RequestPaymentUseCase {
                 rollbackToRequested(orderId);
                 throw new WalletCommunicationException(original);
             }
+            // 새 Result 값 추가 시 컴파일 통과돼도 default 가 즉시 실패시켜 회귀를 조기에 드러낸다.
+            default -> throw new IllegalStateException(
+                    "Unexpected wallet usage result: " + usage.result());
         }
     }
 
@@ -178,7 +181,8 @@ public class RequestPaymentService implements RequestPaymentUseCase {
 
     // SAGA 상태 복귀 (보상 트랜잭션 아님) — PAYMENT_PENDING → REQUESTED.
     // 1-step saga 라 wallet 에 되돌릴 외부 변경 없음. order 상태만 복귀.
-    // 본 트랜잭션 실패 시 PAYMENT_PENDING 으로 stuck → reconciliation 스케줄러가 백오프 후 처리.
+    // 본 트랜잭션이 실패하면 reconciliation enqueue 없이 PAYMENT_PENDING 으로 stuck — 현재 자동 복구 경로 없음.
+    // TODO: rollback 실패 시 enqueueIfAbsent 안전망 추가 (후속 PR).
     private void rollbackToRequested(OrderId orderId) {
         txTemplate.execute(status -> {
             Order order = orderRepository.findByIdOrThrow(orderId);

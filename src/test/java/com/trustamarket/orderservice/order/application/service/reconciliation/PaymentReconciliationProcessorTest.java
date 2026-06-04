@@ -27,6 +27,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -154,8 +156,4 @@ class PaymentReconciliationProcessorTest {
         order.requestPayment();    // REQUESTED → PAYMENT_PENDING
         return order;
     }
-
-    // Mockito ArgumentMatchers 헬퍼 static import 누락 회피 — 메서드 정의로 대체.
-    private static <T> T eq(T value) { return org.mockito.ArgumentMatchers.eq(value); }
-    private static int anyInt() { return org.mockito.ArgumentMatchers.anyInt(); }
 }
