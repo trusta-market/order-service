@@ -8,6 +8,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -48,6 +49,11 @@ public class PaymentReconciliationJpaEntity extends BaseUserEntity {
 
     @Column(name = "last_error", columnDefinition = "text")
     private String lastError;
+
+    // Optimistic Lock — Hibernate 가 UPDATE 시 자동 증가, 충돌 시 OptimisticLockException.
+    @Version
+    @Column(name = "version", nullable = false)
+    private long version;
 
     @Builder
     private PaymentReconciliationJpaEntity(UUID id, UUID orderId, ReconciliationStatus status,

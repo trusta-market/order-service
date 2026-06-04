@@ -70,14 +70,24 @@ public class PaymentReconciliationProcessor {
     }
 
     // wallet 결과 (DEDUCTED / INSUFFICIENT / NOT_FOUND) 별 분기.
-    // order 상태 전이 + reconciliation.markDone 을 같은 트랜잭션 안에서 commit.
+    // Aggregate 경계 (Order vs PaymentReconciliation) 분리 — 두 개의 짧은 트랜잭션으로.
+    //   tx1: Order 상태 전이 (markPaid 또는 rollbackPaymentRequest)
+    //   tx2: reconciliation.markDone
+    // tx2 실패 시 다음 폴링이 재시도 — Order 의 상태별 멱등 가드 (PAID/REQUESTED 면 skip) 가 중복 반영을 막는다.
     private void applyResult(PaymentReconciliation reconciliation, UsageStatus usage) {
         OrderId orderId = OrderId.of(reconciliation.getOrderId());
+
+        // ── tx1: Order Aggregate ──
         txTemplate.execute(status -> {
             switch (usage.result()) {
                 case DEDUCTED -> applyDeducted(orderId);
                 case INSUFFICIENT, NOT_FOUND -> applyRollback(orderId);
             }
+            return null;
+        });
+
+        // ── tx2: PaymentReconciliation Aggregate ──
+        txTemplate.execute(status -> {
             reconciliation.markDone(Instant.now());
             reconciliationRepository.save(reconciliation);
             return null;
@@ -87,6 +97,7 @@ public class PaymentReconciliationProcessor {
     private void applyDeducted(OrderId orderId) {
         Order order = orderRepository.findByIdOrThrow(orderId);
         // 이미 PAID 면 멱등 처리 — outbox 중복 발행 방지.
+        // (Aggregate 경계 분리 후 tx2 실패 시 다음 폴링에서 재진입할 때도 안전.)
         if (order.getStatus() == OrderStatus.PAID) {
             return;
         }

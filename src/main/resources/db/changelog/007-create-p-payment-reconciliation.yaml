@@ -57,6 +57,15 @@ databaseChangeLog:
                   name: last_error
                   type: text
 
+              # Optimistic Lock — multi-pod 또는 동시 폴링 시 같은 row 의 마지막 commit 덮어쓰기 방지.
+              # JPA @Version 이 매 UPDATE 마다 WHERE version = :v 조건 추가 + 충돌 시 OptimisticLockException.
+              - column:
+                  name: version
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
               # audit (BaseUserEntity 일관성) — 시스템 처리라 by 는 system UUID 또는 null.
               - column:
                   name: created_at
