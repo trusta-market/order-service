@@ -5,8 +5,8 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -20,9 +20,10 @@ public interface WalletFeignClient {
     ResponseEntity<CommonResponse<UseWalletResponse>> usePoint(@RequestBody UseWalletRequest request);
 
     // saga 의 catch / reconciliation scheduler 가 호출 — orderId 로 차감 기록 조회.
-    // wallet 측은 DB 만 읽음 (멱등). 차감 기록 있으면 result=DEDUCTED, 없으면 NOT_DEDUCTED.
-    @GetMapping("/internal/v1/wallets/usages/{orderId}")
-    ResponseEntity<CommonResponse<UsageStatusResponse>> getUsage(@PathVariable UUID orderId);
+    // wallet 측은 DB 만 읽음 (멱등). 차감 기록 있으면 DEDUCTED, 거절 기록 있으면 INSUFFICIENT, 없으면 NOT_FOUND.
+    // orderId 는 query parameter — 단건 조회지만 wallet 팀과의 컨벤션상 path 대신 query 사용.
+    @GetMapping("/internal/v1/wallets/usages")
+    ResponseEntity<CommonResponse<UsageStatusResponse>> getUsage(@RequestParam("orderId") UUID orderId);
 
     // wallet-service 의 UseWalletRequest 와 동일 필드명/타입.
     record UseWalletRequest(
