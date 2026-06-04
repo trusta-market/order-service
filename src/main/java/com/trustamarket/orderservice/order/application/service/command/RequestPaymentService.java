@@ -23,6 +23,7 @@ import com.trustamarket.orderservice.order.domain.model.OrderId;
 import com.trustamarket.orderservice.order.domain.model.OrderStatus;
 import com.trustamarket.orderservice.order.domain.model.PaymentReconciliation;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -48,6 +49,7 @@ import java.time.Instant;
 // NOT_FOUND / INSUFFICIENT 는 wallet 에 외부 변경이 없으므로 order 상태만 REQUESTED 로 복귀.
 //
 // Idempotency-Key 검증: RequestPaymentCommand compact constructor 가 NotBlank 보장.
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RequestPaymentService implements RequestPaymentUseCase {
@@ -181,16 +183,22 @@ public class RequestPaymentService implements RequestPaymentUseCase {
 
     // SAGA 상태 복귀 (보상 트랜잭션 아님) — PAYMENT_PENDING → REQUESTED.
     // 1-step saga 라 wallet 에 되돌릴 외부 변경 없음. order 상태만 복귀.
-    // 본 트랜잭션이 실패하면 reconciliation enqueue 없이 PAYMENT_PENDING 으로 stuck — 현재 자동 복구 경로 없음.
-    // TODO: rollback 실패 시 enqueueIfAbsent 안전망 추가 (후속 PR).
+    // 본 트랜잭션이 깨지면 reconciliation 큐로 위임 — scheduler 가 백오프 후 getUsage 재시도하면서 결국 정리.
     private void rollbackToRequested(OrderId orderId) {
-        txTemplate.execute(status -> {
-            Order order = orderRepository.findByIdOrThrow(orderId);
-            OrderStatus pre = order.getStatus();
-            order.rollbackPaymentRequest();
-            historyRecorder.record(order.getId(), pre, order.getStatus(), null);
-            orderRepository.save(order);
-            return null;
-        });
+        try {
+            txTemplate.execute(status -> {
+                Order order = orderRepository.findByIdOrThrow(orderId);
+                OrderStatus pre = order.getStatus();
+                order.rollbackPaymentRequest();
+                historyRecorder.record(order.getId(), pre, order.getStatus(), null);
+                orderRepository.save(order);
+                return null;
+            });
+        } catch (RuntimeException e) {
+            log.error("[saga] rollbackToRequested 실패 — reconciliation 큐로 위임. orderId={}", orderId, e);
+            reconciliationRepository.enqueueIfAbsent(
+                    PaymentReconciliation.enqueue(orderId.value(), Instant.now())
+            );
+        }
     }
 }

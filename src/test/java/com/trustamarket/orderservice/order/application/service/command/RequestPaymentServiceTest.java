@@ -197,6 +197,30 @@ class RequestPaymentServiceTest {
     }
 
     @Test
+    @DisplayName("rollbackToRequested tx 실패 → reconciliation 큐로 위임 (안전망)")
+    void rollback_txFailure_enqueuesReconciliation() {
+        UUID buyerId = UUID.randomUUID();
+        String idempotencyKey = UUID.randomUUID().toString();
+        Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
+        when(inboxRepository.tryRecordIdempotencyKey(idempotencyKey, InboxPurposeKey.REQUEST_PAYMENT)).thenReturn(true);
+        when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
+        // 정상 응답: 잔액 부족 → rollbackToRequested 시도
+        when(walletPaymentPort.deduct(any())).thenReturn(new DeductPointResponse(5_000L, 98_000L));
+        // 두 번째 tx (rollback 의 save) 가 일시 장애로 실패하도록 stub.
+        // 첫 번째 save (PAYMENT_PENDING) 는 성공, 두 번째 save 가 RuntimeException.
+        org.mockito.stubbing.Stubber stubber = org.mockito.Mockito.doAnswer(inv -> inv.getArgument(0))
+                .doThrow(new RuntimeException("DB 일시 장애"));
+        stubber.when(orderRepository).save(any(Order.class));
+
+        // saga 본문은 InsufficientPointBalanceException 을 던지지만, rollback 실패 → 큐 위임 → 그대로 throw.
+        assertThatThrownBy(() ->
+                service.requestPayment(new RequestPaymentCommand(order.getId().value(), buyerId, idempotencyKey))
+        ).isInstanceOf(InsufficientPointBalanceException.class);
+
+        verify(reconciliationRepository).enqueueIfAbsent(any(PaymentReconciliation.class));
+    }
+
+    @Test
     @DisplayName("wallet timeout → getUsage 도 실패 → reconciliation enqueue + PaymentVerificationPendingException")
     void unknown_verifyAlsoFails() {
         UUID buyerId = UUID.randomUUID();
