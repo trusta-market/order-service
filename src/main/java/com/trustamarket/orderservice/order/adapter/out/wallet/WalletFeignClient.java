@@ -53,7 +53,7 @@ public interface WalletFeignClient {
             Long shortage
     ) {}
 
-    // wallet 측 GET /usages/{orderId} 응답.
+    // wallet 측 GET /internal/v1/wallets/usages?orderId=... 응답.
     // result = "DEDUCTED" | "INSUFFICIENT" | "NOT_FOUND"
     //   DEDUCTED     : 차감 완료. amount/balance/deductedAt 채움
     //   INSUFFICIENT : 잔액 부족으로 wallet 이 거절. balance/shortage 채움
