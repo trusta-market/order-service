@@ -157,6 +157,26 @@ class PaymentReconciliationProcessorTest {
     }
 
     @Test
+    @DisplayName("INSUFFICIENT 인데 order 가 이미 CANCELLED — 멱등 처리 (rollback 호출 X)")
+    void insufficient_alreadyCancelled() {
+        Order order = OrderTestFixtures.requestedOrder();
+        order.requestPayment();   // REQUESTED → PAYMENT_PENDING
+        order.cancel(com.trustamarket.orderservice.order.domain.model.Reason.of("user cancelled during reconciliation"));
+        PaymentReconciliation r = PaymentReconciliation.enqueue(order.getId().value(), Instant.now());
+        when(walletPaymentPort.getUsage(order.getId().value())).thenReturn(
+                new UsageStatus(order.getId().value(), UsageStatus.Result.INSUFFICIENT,
+                        null, 5_000L, 95_000L, null));
+        when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
+
+        processor.processOne(r);
+
+        // CANCELLED 종결 상태 유지 — rollback 안 함 (wallet 차감 없는 케이스라 보상 불필요)
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(r.getStatus()).isEqualTo(ReconciliationStatus.DONE);
+        verify(orderRepository, never()).save(any(Order.class));
+    }
+
+    @Test
     @DisplayName("DEDUCTED 인데 order 가 이미 PAID — 멱등 처리 (markPaid 호출 X)")
     void deducted_alreadyPaid() {
         Order order = OrderTestFixtures.paidOrder(UUID.randomUUID(), UUID.randomUUID());

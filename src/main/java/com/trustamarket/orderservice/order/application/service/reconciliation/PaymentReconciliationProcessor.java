@@ -119,8 +119,10 @@ public class PaymentReconciliationProcessor {
 
     private void applyRollback(OrderId orderId) {
         Order order = orderRepository.findByIdOrThrow(orderId);
-        // 이미 REQUESTED 면 멱등 처리.
-        if (order.getStatus() == OrderStatus.REQUESTED) {
+        // 이미 REQUESTED 또는 CANCELLED 면 멱등 처리 — 종결 상태, 추가 작업 불필요.
+        // (사용자가 reconciliation 도중 cancel 한 케이스 — wallet 차감 없는 INSUFFICIENT/NOT_FOUND 라 보상 불필요.)
+        if (order.getStatus() == OrderStatus.REQUESTED
+                || order.getStatus() == OrderStatus.CANCELLED) {
             return;
         }
         OrderStatus pre = order.getStatus();

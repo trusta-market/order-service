@@ -1,6 +1,8 @@
 package com.trustamarket.orderservice.order.adapter.out.wallet;
 
 import com.trustamarket.common.response.CommonResponse;
+import com.trustamarket.orderservice.order.domain.exception.InvalidIdException;
+import com.trustamarket.orderservice.order.domain.exception.InvalidMoneyException;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,7 +37,15 @@ public interface WalletFeignClient {
             UUID orderId,
             UUID buyerId,
             Long totalAmount
-    ) {}
+    ) {
+        public UseWalletRequest {
+            if (idempotencyKey == null) throw new InvalidIdException("idempotencyKey");
+            if (orderId == null) throw new InvalidIdException("orderId");
+            if (buyerId == null) throw new InvalidIdException("buyerId");
+            if (totalAmount == null) throw new InvalidMoneyException("totalAmount");
+            if (totalAmount <= 0) throw new InvalidMoneyException(totalAmount);
+        }
+    }
 
     // wallet-service 의 UseWalletResponse 와 동일 필드명/타입.
     record UseWalletResponse(
@@ -55,5 +65,11 @@ public interface WalletFeignClient {
             Long balance,
             Long shortage,
             Instant deductedAt
-    ) {}
+    ) {
+        public UsageStatusResponse {
+            // 기본 무결성 — 결과별 nullable 규칙은 Adapter 가 enum 변환 후 검증.
+            if (orderId == null) throw new InvalidIdException("orderId");
+            if (result == null || result.isBlank()) throw new InvalidIdException("result");
+        }
+    }
 }
