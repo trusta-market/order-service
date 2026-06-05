@@ -133,26 +133,26 @@ class PaymentReconciliationProcessorTest {
     }
 
     @Test
-    @DisplayName("tx2 reconciliation save 실패 → handleUnknown 으로 retry_count++ (회귀)")
-    void tx2Failure_handleUnknownFallback() {
+    @DisplayName("tx2 reconciliation save 실패 → in-memory DONE 가드로 handleUnknown skip (회귀)")
+    void tx2Failure_skipsHandleUnknown() {
         Order order = paymentPendingOrder();
         PaymentReconciliation r = PaymentReconciliation.enqueue(order.getId().value(), Instant.now());
         when(walletPaymentPort.getUsage(order.getId().value())).thenReturn(
                 new UsageStatus(order.getId().value(), UsageStatus.Result.DEDUCTED,
                         100_000L, 50_000L, null, Instant.now()));
         when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
-        // tx2 의 첫 save (markDone 직후) 만 throw, 두 번째 save (handleUnknown 의 recordUnknown 후) 는 성공.
-        org.mockito.stubbing.Stubber stubber = org.mockito.Mockito.doThrow(new RuntimeException("DB 일시 장애"))
-                .doAnswer(inv -> inv.getArgument(0));
-        stubber.when(reconciliationRepository).save(any(PaymentReconciliation.class));
+        // tx2 의 save 가 실패 — in-memory 는 markDone 으로 status=DONE 이지만 DB 는 PENDING.
+        org.mockito.Mockito.doThrow(new RuntimeException("DB 일시 장애"))
+                .when(reconciliationRepository).save(any(PaymentReconciliation.class));
 
         processor.processOne(r);
 
         // tx1 은 commit 되어 Order 는 PAID — 다음 폴링에서 멱등 가드가 중복 반영 방지.
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
-        // tx2 실패 → handleUnknown → recordUnknown 으로 retry_count 증가.
-        assertThat(r.getRetryCount()).isEqualTo(1);
-        // 첫 시도라 GIVEN_UP / 알림 발생 X.
+        // in-memory status 는 markDone 호출된 채 남아있음.
+        assertThat(r.getStatus()).isEqualTo(ReconciliationStatus.DONE);
+        // handleUnknown 가드가 작동 — recordUnknown 호출 X → retry_count 0 유지.
+        assertThat(r.getRetryCount()).isEqualTo(0);
         verify(alertPort, never()).notifyGivenUp(any(), anyInt(), any());
     }
 

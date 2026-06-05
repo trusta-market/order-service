@@ -89,11 +89,12 @@ databaseChangeLog:
                   type: uuid
 
         # polling 쿼리: WHERE status='PENDING' AND next_retry_at <= NOW()
-        - createIndex:
-            tableName: p_payment_reconciliation
-            indexName: idx_p_payment_reconciliation_status_next_retry_at
-            columns:
-              - column:
-                  name: status
-              - column:
-                  name: next_retry_at
+        # PENDING 외 상태 (DONE / GIVEN_UP) 는 polling 대상 아니므로 partial index 로 크기 축소.
+        # Liquibase createIndex 는 partial 지원 X → raw SQL 사용 (PostgreSQL).
+        - sql:
+            dbms: postgresql
+            sql: >-
+              CREATE INDEX idx_p_payment_reconciliation_pending_next_retry_at
+              ON p_payment_reconciliation (next_retry_at)
+              WHERE status = 'PENDING';
+            rollback: DROP INDEX IF EXISTS idx_p_payment_reconciliation_pending_next_retry_at;

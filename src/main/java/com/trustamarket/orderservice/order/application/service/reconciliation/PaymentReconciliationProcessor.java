@@ -131,6 +131,14 @@ public class PaymentReconciliationProcessor {
 
     // getUsage 자체가 또 실패한 경우 — 백오프 후 재시도. MAX 도달 시 GIVEN_UP + 알림.
     private void handleUnknown(PaymentReconciliation reconciliation, String error) {
+        // applyResult 의 tx2 실패로 인해 in-memory status=DONE 인 채 진입할 수 있음
+        // (tx 롤백 후에도 markDone 의 in-memory mutation 은 남음).
+        // DB 는 PENDING 그대로이므로 다음 폴링이 fresh load 후 정리하게 skip.
+        if (reconciliation.getStatus() != ReconciliationStatus.PENDING) {
+            log.warn("[Reconciliation] handleUnknown skip — in-memory status={}, orderId={}",
+                    reconciliation.getStatus(), reconciliation.getOrderId());
+            return;
+        }
         Instant now = Instant.now();
         txTemplate.execute(status -> {
             reconciliation.recordUnknown(error, now);
