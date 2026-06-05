@@ -4,6 +4,7 @@ import com.trustamarket.orderservice.order.application.port.out.PaymentReconcili
 import com.trustamarket.orderservice.order.domain.model.PaymentReconciliation;
 import com.trustamarket.orderservice.order.domain.model.ReconciliationStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -20,6 +21,8 @@ public class PaymentReconciliationJpaRepositoryAdapter implements PaymentReconci
     private final PaymentReconciliationJpaRepository jpaRepository;
     private final PaymentReconciliationMapper mapper;
 
+    private static final String ORDER_ID_UNIQUE_CONSTRAINT = "uq_p_payment_reconciliation_order_id";
+
     // saga catch 안에서 호출. existsByOrderId 로 중복 INSERT 회피 + UNIQUE(order_id) 가 동시성 안전망.
     // TOCTOU race (exists check 통과 후 다른 트랜잭션이 먼저 INSERT) 시 DataIntegrityViolationException 발생 →
     // 멱등 skip (어차피 같은 orderId 의 PENDING row 가 이미 존재).
@@ -31,8 +34,18 @@ public class PaymentReconciliationJpaRepositoryAdapter implements PaymentReconci
         try {
             jpaRepository.save(mapper.toEntity(reconciliation));
         } catch (DataIntegrityViolationException e) {
-            // UNIQUE(order_id) 가 잡은 동시 실패 race — 다른 트랜잭션이 이미 등록했으므로 멱등 skip.
+            // UNIQUE(order_id) 가 잡은 동시 실패 race 만 멱등 skip.
+            // 그 외 제약 위반은 실제 장애로 보고 호출자에게 전파.
+            if (!isOrderIdUniqueViolation(e)) {
+                throw e;
+            }
         }
+    }
+
+    private boolean isOrderIdUniqueViolation(DataIntegrityViolationException e) {
+        Throwable root = NestedExceptionUtils.getMostSpecificCause(e);
+        String message = root != null ? root.getMessage() : null;
+        return message != null && message.contains(ORDER_ID_UNIQUE_CONSTRAINT);
     }
 
     // 결정적 정렬 — nextRetryAt 오름차순으로 가장 오래 대기한 row 부터 처리.

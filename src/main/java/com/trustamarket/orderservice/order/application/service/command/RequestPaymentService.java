@@ -119,7 +119,7 @@ public class RequestPaymentService implements RequestPaymentUseCase {
         }
 
         // ── [tx2] 성공: PAID + outbox ──
-        markPaidAndPublish(orderId);
+        finalizePaidOrEnqueue(orderId);
     }
 
     // saga catch 안에서 wallet 결과를 재확인하는 분기.
@@ -140,7 +140,7 @@ public class RequestPaymentService implements RequestPaymentUseCase {
         }
 
         switch (usage.result()) {
-            case DEDUCTED -> markPaidAndPublish(orderId);
+            case DEDUCTED -> finalizePaidOrEnqueue(orderId);
             case INSUFFICIENT -> {
                 rollbackToRequested(orderId);
                 throw new InsufficientPointBalanceException(
@@ -156,6 +156,21 @@ public class RequestPaymentService implements RequestPaymentUseCase {
             // 새 Result 값 추가 시 컴파일 통과돼도 default 가 즉시 실패시켜 회귀를 조기에 드러낸다.
             default -> throw new IllegalStateException(
                     "Unexpected wallet usage result: " + usage.result());
+        }
+    }
+
+    // tx2 wrapper — markPaidAndPublish 실패 시 reconciliation 큐로 위임 후 PaymentVerificationPendingException.
+    // 이유: wallet 은 이미 차감됐는데 (deduct 성공 또는 getUsage=DEDUCTED) tx2 가 깨지면
+    // order 가 PAYMENT_PENDING + outbox 없음 → 영구 stuck. 큐에 넣어 scheduler 가 정리하게.
+    private void finalizePaidOrEnqueue(OrderId orderId) {
+        try {
+            markPaidAndPublish(orderId);
+        } catch (RuntimeException e) {
+            log.error("[saga] markPaidAndPublish 실패 — reconciliation 큐로 위임. orderId={}", orderId, e);
+            reconciliationRepository.enqueueIfAbsent(
+                    PaymentReconciliation.enqueue(orderId.value(), Instant.now())
+            );
+            throw new PaymentVerificationPendingException(orderId.value(), e);
         }
     }
 
@@ -183,7 +198,9 @@ public class RequestPaymentService implements RequestPaymentUseCase {
 
     // SAGA 상태 복귀 (보상 트랜잭션 아님) — PAYMENT_PENDING → REQUESTED.
     // 1-step saga 라 wallet 에 되돌릴 외부 변경 없음. order 상태만 복귀.
-    // 본 트랜잭션이 깨지면 reconciliation 큐로 위임 — scheduler 가 백오프 후 getUsage 재시도하면서 결국 정리.
+    // 본 트랜잭션이 깨지면 reconciliation 큐로 위임 + PaymentVerificationPendingException 던져 사용자에 202 응답.
+    // 호출자가 던지려던 InsufficientPointBalanceException / WalletCommunicationException 등은 도달 X —
+    // rollback 실패면 order 가 PAYMENT_PENDING 으로 stuck 이라 "처리 중" 응답이 더 정확.
     private void rollbackToRequested(OrderId orderId) {
         try {
             txTemplate.execute(status -> {
@@ -199,6 +216,7 @@ public class RequestPaymentService implements RequestPaymentUseCase {
             reconciliationRepository.enqueueIfAbsent(
                     PaymentReconciliation.enqueue(orderId.value(), Instant.now())
             );
+            throw new PaymentVerificationPendingException(orderId.value(), e);
         }
     }
 }

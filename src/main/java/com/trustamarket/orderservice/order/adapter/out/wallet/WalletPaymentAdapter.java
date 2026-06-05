@@ -66,6 +66,12 @@ public class WalletPaymentAdapter implements WalletPaymentPort {
                 log.error("[Wallet] getUsage 빈/비정상 응답 — orderId={}", orderId);
                 throw new WalletCommunicationException();
             }
+            // 응답 orderId 무결성 — 잘못된 응답이 다른 주문에 적용되는 오판정 방지.
+            if (!orderId.equals(data.orderId())) {
+                log.error("[Wallet] getUsage orderId 불일치 — requested={}, response={}",
+                        orderId, data.orderId());
+                throw new WalletCommunicationException();
+            }
             UsageStatus.Result result;
             try {
                 result = UsageStatus.Result.valueOf(data.result());

@@ -133,6 +133,30 @@ class PaymentReconciliationProcessorTest {
     }
 
     @Test
+    @DisplayName("tx2 reconciliation save 실패 → handleUnknown 으로 retry_count++ (회귀)")
+    void tx2Failure_handleUnknownFallback() {
+        Order order = paymentPendingOrder();
+        PaymentReconciliation r = PaymentReconciliation.enqueue(order.getId().value(), Instant.now());
+        when(walletPaymentPort.getUsage(order.getId().value())).thenReturn(
+                new UsageStatus(order.getId().value(), UsageStatus.Result.DEDUCTED,
+                        100_000L, 50_000L, null, Instant.now()));
+        when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
+        // tx2 의 첫 save (markDone 직후) 만 throw, 두 번째 save (handleUnknown 의 recordUnknown 후) 는 성공.
+        org.mockito.stubbing.Stubber stubber = org.mockito.Mockito.doThrow(new RuntimeException("DB 일시 장애"))
+                .doAnswer(inv -> inv.getArgument(0));
+        stubber.when(reconciliationRepository).save(any(PaymentReconciliation.class));
+
+        processor.processOne(r);
+
+        // tx1 은 commit 되어 Order 는 PAID — 다음 폴링에서 멱등 가드가 중복 반영 방지.
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
+        // tx2 실패 → handleUnknown → recordUnknown 으로 retry_count 증가.
+        assertThat(r.getRetryCount()).isEqualTo(1);
+        // 첫 시도라 GIVEN_UP / 알림 발생 X.
+        verify(alertPort, never()).notifyGivenUp(any(), anyInt(), any());
+    }
+
+    @Test
     @DisplayName("DEDUCTED 인데 order 가 이미 PAID — 멱등 처리 (markPaid 호출 X)")
     void deducted_alreadyPaid() {
         Order order = OrderTestFixtures.paidOrder(UUID.randomUUID(), UUID.randomUUID());

@@ -197,8 +197,8 @@ class RequestPaymentServiceTest {
     }
 
     @Test
-    @DisplayName("rollbackToRequested tx 실패 → reconciliation 큐로 위임 (안전망)")
-    void rollback_txFailure_enqueuesReconciliation() {
+    @DisplayName("rollbackToRequested tx 실패 → reconciliation 큐 위임 + PaymentVerificationPendingException (안전망)")
+    void rollback_txFailure_enqueuesAndPending() {
         UUID buyerId = UUID.randomUUID();
         String idempotencyKey = UUID.randomUUID().toString();
         Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
@@ -212,10 +212,33 @@ class RequestPaymentServiceTest {
                 .doThrow(new RuntimeException("DB 일시 장애"));
         stubber.when(orderRepository).save(any(Order.class));
 
-        // saga 본문은 InsufficientPointBalanceException 을 던지지만, rollback 실패 → 큐 위임 → 그대로 throw.
+        // rollback 실패 → 호출자의 InsufficientPointBalanceException 은 unreachable.
+        // 큐 위임 + PaymentVerificationPendingException 으로 사용자에 "처리 중" 응답.
         assertThatThrownBy(() ->
                 service.requestPayment(new RequestPaymentCommand(order.getId().value(), buyerId, idempotencyKey))
-        ).isInstanceOf(InsufficientPointBalanceException.class);
+        ).isInstanceOf(PaymentVerificationPendingException.class);
+
+        verify(reconciliationRepository).enqueueIfAbsent(any(PaymentReconciliation.class));
+    }
+
+    @Test
+    @DisplayName("deduct 성공 후 markPaidAndPublish (tx2) 실패 → reconciliation 큐 위임 + PaymentVerificationPendingException")
+    void tx2Failure_enqueuesAndPending() {
+        UUID buyerId = UUID.randomUUID();
+        String idempotencyKey = UUID.randomUUID().toString();
+        Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
+        when(inboxRepository.tryRecordIdempotencyKey(idempotencyKey, InboxPurposeKey.REQUEST_PAYMENT)).thenReturn(true);
+        when(orderRepository.findByIdOrThrow(order.getId())).thenReturn(order);
+        when(walletPaymentPort.deduct(any())).thenReturn(new DeductPointResponse(50_000L, null));
+        // 첫 번째 save (PAYMENT_PENDING) 성공, 두 번째 save (PAID) 실패 시뮬.
+        org.mockito.stubbing.Stubber stubber = org.mockito.Mockito.doAnswer(inv -> inv.getArgument(0))
+                .doThrow(new RuntimeException("DB 일시 장애"));
+        stubber.when(orderRepository).save(any(Order.class));
+
+        // wallet 은 이미 차감됨. tx2 실패가 영구 stuck 되지 않도록 큐 위임 + 202 응답.
+        assertThatThrownBy(() ->
+                service.requestPayment(new RequestPaymentCommand(order.getId().value(), buyerId, idempotencyKey))
+        ).isInstanceOf(PaymentVerificationPendingException.class);
 
         verify(reconciliationRepository).enqueueIfAbsent(any(PaymentReconciliation.class));
     }
