@@ -58,7 +58,7 @@ public class PaymentReconciliationJpaEntity extends BaseUserEntity {
     @Builder
     private PaymentReconciliationJpaEntity(UUID id, UUID orderId, ReconciliationStatus status,
                                            int retryCount, Instant nextRetryAt,
-                                           Instant lastAttemptAt, String lastError) {
+                                           Instant lastAttemptAt, String lastError, long version) {
         this.id = id;
         this.orderId = orderId;
         this.status = status;
@@ -66,5 +66,6 @@ public class PaymentReconciliationJpaEntity extends BaseUserEntity {
         this.nextRetryAt = nextRetryAt;
         this.lastAttemptAt = lastAttemptAt;
         this.lastError = lastError;
+        this.version = version;
     }
 }

@@ -39,11 +39,14 @@ public class PaymentReconciliation {
     private Instant nextRetryAt;
     private Instant lastAttemptAt;
     private String lastError;
+    // JPA Optimistic Lock 의 version — entity 와 일관성 유지 (mapper 가 양방향 매핑).
+    // 도메인 로직에서 직접 변경하지 않음. JPA 가 entity 의 @Version 으로 자동 증가.
+    private long version;
 
     @Builder
     private PaymentReconciliation(UUID id, UUID orderId, ReconciliationStatus status,
                                   int retryCount, Instant nextRetryAt,
-                                  Instant lastAttemptAt, String lastError) {
+                                  Instant lastAttemptAt, String lastError, long version) {
         this.id = id;
         this.orderId = orderId;
         this.status = status;
@@ -51,6 +54,7 @@ public class PaymentReconciliation {
         this.nextRetryAt = nextRetryAt;
         this.lastAttemptAt = lastAttemptAt;
         this.lastError = lastError;
+        this.version = version;
     }
 
     // saga catch 안에서 결과 확인까지 실패했을 때 enqueue.

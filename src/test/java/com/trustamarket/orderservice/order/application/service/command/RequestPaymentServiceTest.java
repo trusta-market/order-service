@@ -222,6 +222,27 @@ class RequestPaymentServiceTest {
     }
 
     @Test
+    @DisplayName("tx2 도메인 예외 (markPaidAndPublish 안 OrderNotFoundException) → 큐 위임 + PaymentVerificationPendingException")
+    void tx2DomainException_enqueuesAndPending() {
+        UUID buyerId = UUID.randomUUID();
+        String idempotencyKey = UUID.randomUUID().toString();
+        Order order = OrderTestFixtures.requestedOrder(buyerId, UUID.randomUUID());
+        when(inboxRepository.tryRecordIdempotencyKey(idempotencyKey, InboxPurposeKey.REQUEST_PAYMENT)).thenReturn(true);
+        // tx1 의 findByIdOrThrow 는 성공, tx2 (markPaidAndPublish 안) 의 findByIdOrThrow 는 도메인 예외.
+        when(orderRepository.findByIdOrThrow(order.getId()))
+                .thenReturn(order)
+                .thenThrow(new com.trustamarket.orderservice.order.domain.exception.OrderNotFoundException(order.getId().value()));
+        when(walletPaymentPort.deduct(any())).thenReturn(new DeductPointResponse(50_000L, null));
+
+        // wallet 차감된 상태에서 도메인 예외로 throw 하면 영구 stuck 가능 → 큐로 위임 + 202 응답.
+        assertThatThrownBy(() ->
+                service.requestPayment(new RequestPaymentCommand(order.getId().value(), buyerId, idempotencyKey))
+        ).isInstanceOf(PaymentVerificationPendingException.class);
+
+        verify(reconciliationRepository).enqueueIfAbsent(any(PaymentReconciliation.class));
+    }
+
+    @Test
     @DisplayName("deduct 성공 후 markPaidAndPublish (tx2) 실패 → reconciliation 큐 위임 + PaymentVerificationPendingException")
     void tx2Failure_enqueuesAndPending() {
         UUID buyerId = UUID.randomUUID();

@@ -18,6 +18,7 @@ public class PaymentReconciliationMapper {
                 .nextRetryAt(domain.getNextRetryAt())
                 .lastAttemptAt(domain.getLastAttemptAt())
                 .lastError(domain.getLastError())
+                .version(domain.getVersion())
                 .build();
     }
 
@@ -30,6 +31,7 @@ public class PaymentReconciliationMapper {
                 .nextRetryAt(entity.getNextRetryAt())
                 .lastAttemptAt(entity.getLastAttemptAt())
                 .lastError(entity.getLastError())
+                .version(entity.getVersion())
                 .build();
     }
 }
