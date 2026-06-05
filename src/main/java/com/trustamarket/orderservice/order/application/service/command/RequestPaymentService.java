@@ -162,9 +162,14 @@ public class RequestPaymentService implements RequestPaymentUseCase {
     // tx2 wrapper — markPaidAndPublish 실패 시 reconciliation 큐로 위임 후 PaymentVerificationPendingException.
     // 이유: wallet 은 이미 차감됐는데 (deduct 성공 또는 getUsage=DEDUCTED) tx2 가 깨지면
     // order 가 PAYMENT_PENDING + outbox 없음 → 영구 stuck. 큐에 넣어 scheduler 가 정리하게.
+    //
+    // catch 분리: 도메인 결정적 예외 (OrderException) 는 retry 무의미 → 그대로 전파.
+    // 일시적 인프라 / 알 수 없는 예외 (DataAccessException 등) 만 큐로 위임.
     private void finalizePaidOrEnqueue(OrderId orderId) {
         try {
             markPaidAndPublish(orderId);
+        } catch (com.trustamarket.orderservice.order.domain.exception.OrderException e) {
+            throw e;
         } catch (RuntimeException e) {
             log.error("[saga] markPaidAndPublish 실패 — reconciliation 큐로 위임. orderId={}", orderId, e);
             reconciliationRepository.enqueueIfAbsent(
@@ -198,8 +203,10 @@ public class RequestPaymentService implements RequestPaymentUseCase {
 
     // SAGA 상태 복귀 (보상 트랜잭션 아님) — PAYMENT_PENDING → REQUESTED.
     // 1-step saga 라 wallet 에 되돌릴 외부 변경 없음. order 상태만 복귀.
-    // 본 트랜잭션이 깨지면 reconciliation 큐로 위임 + PaymentVerificationPendingException 던져 사용자에 202 응답.
-    // 호출자가 던지려던 InsufficientPointBalanceException / WalletCommunicationException 등은 도달 X —
+    //
+    // catch 분리: 도메인 결정적 예외 (OrderException) 는 그대로 전파 — retry 무의미.
+    // 일시적 인프라 / 알 수 없는 예외만 큐로 위임 + PaymentVerificationPendingException 던져 사용자에 202 응답.
+    // 후자의 경우 호출자가 던지려던 InsufficientPointBalanceException / WalletCommunicationException 등은 도달 X —
     // rollback 실패면 order 가 PAYMENT_PENDING 으로 stuck 이라 "처리 중" 응답이 더 정확.
     private void rollbackToRequested(OrderId orderId) {
         try {
@@ -211,6 +218,8 @@ public class RequestPaymentService implements RequestPaymentUseCase {
                 orderRepository.save(order);
                 return null;
             });
+        } catch (com.trustamarket.orderservice.order.domain.exception.OrderException e) {
+            throw e;
         } catch (RuntimeException e) {
             log.error("[saga] rollbackToRequested 실패 — reconciliation 큐로 위임. orderId={}", orderId, e);
             reconciliationRepository.enqueueIfAbsent(

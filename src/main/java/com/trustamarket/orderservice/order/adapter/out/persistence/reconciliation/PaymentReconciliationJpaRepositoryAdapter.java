@@ -4,12 +4,14 @@ import com.trustamarket.orderservice.order.application.port.out.PaymentReconcili
 import com.trustamarket.orderservice.order.domain.model.PaymentReconciliation;
 import com.trustamarket.orderservice.order.domain.model.ReconciliationStatus;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.core.NestedExceptionUtils;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
@@ -42,7 +44,22 @@ public class PaymentReconciliationJpaRepositoryAdapter implements PaymentReconci
         }
     }
 
+    // unique violation 식별 — message substring 보다 구조화된 cause 검사가 우선.
+    //   1) Hibernate 의 ConstraintViolationException.constraintName — ORM 이 파싱해서 채워줌
+    //   2) JDBC SQLException.SQLState — "23505" 는 PostgreSQL 표준 unique_violation 코드.
+    //      (DB 가 직접 알려주는 값이라 메시지 파싱보다 드라이버/버전에 안전)
+    //      SQLState 만으로는 어떤 unique 인지 모르므로 message 로 한 번 더 확인.
+    //   3) fallback — message substring (1·2 가 모두 실패할 경우 대비)
     private boolean isOrderIdUniqueViolation(DataIntegrityViolationException e) {
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            if (cause instanceof ConstraintViolationException cve) {
+                return ORDER_ID_UNIQUE_CONSTRAINT.equals(cve.getConstraintName());
+            }
+            if (cause instanceof SQLException sql && "23505".equals(sql.getSQLState())) {
+                String msg = sql.getMessage();
+                return msg != null && msg.contains(ORDER_ID_UNIQUE_CONSTRAINT);
+            }
+        }
         Throwable root = NestedExceptionUtils.getMostSpecificCause(e);
         String message = root != null ? root.getMessage() : null;
         return message != null && message.contains(ORDER_ID_UNIQUE_CONSTRAINT);
