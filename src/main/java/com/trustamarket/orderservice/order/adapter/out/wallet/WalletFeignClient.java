@@ -29,7 +29,9 @@ public interface WalletFeignClient {
     ResponseEntity<CommonResponse<UsageStatusResponse>> getUsage(@RequestParam("orderId") UUID orderId);
 
     // wallet-service 의 UseWalletRequest 와 동일 필드명/타입.
+    // idempotencyKey: 사용자 멱등 키. wallet 의 uk_idempotency_key 가 같은 키 재요청 시 멱등 응답 보장.
     record UseWalletRequest(
+            UUID idempotencyKey,
             UUID orderId,
             UUID buyerId,
             Long totalAmount

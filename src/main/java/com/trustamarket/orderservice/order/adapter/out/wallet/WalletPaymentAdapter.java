@@ -26,6 +26,7 @@ public class WalletPaymentAdapter implements WalletPaymentPort {
         try {
             ResponseEntity<CommonResponse<WalletFeignClient.UseWalletResponse>> response = walletFeignClient.usePoint(
                     new WalletFeignClient.UseWalletRequest(
+                            request.idempotencyKey(),
                             request.orderId(),
                             request.buyerId(),
                             request.totalAmount()

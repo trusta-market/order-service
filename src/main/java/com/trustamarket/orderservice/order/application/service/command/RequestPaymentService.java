@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
+import java.util.UUID;
 
 // REQUESTED → PAYMENT_PENDING → (Wallet sync) → PAID
 // Saga 분리: wallet feign call 이 tx 밖이라 connection hold X.
@@ -89,7 +90,12 @@ public class RequestPaymentService implements RequestPaymentUseCase {
         DeductPointResponse res;
         try {
             res = walletPaymentPort.deduct(
-                    new DeductPointRequest(cmd.orderId(), cmd.buyerId(), totalAmount)
+                    new DeductPointRequest(
+                            UUID.fromString(cmd.idempotencyKey()),
+                            cmd.orderId(),
+                            cmd.buyerId(),
+                            totalAmount
+                    )
             );
             if (res == null) {
                 throw new WalletCommunicationException();

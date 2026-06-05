@@ -25,12 +25,16 @@ public interface WalletPaymentPort {
 
     // 주문 -> 포인트 사용 요청 DTO
     // 금액은 룰 [3]에 따라 long(원시형) 사용. compact constructor로 입력 검증
+    // idempotencyKey: 사용자 Idempotency-Key (= inbox.tryRecordIdempotencyKey 와 동일 값).
+    //                  wallet 이 같은 키 재요청 시 멱등 응답 보장 — 우리 inbox 가 1차 차단, wallet 멱등이 안전망.
     record DeductPointRequest(
+            UUID idempotencyKey,
             UUID orderId,
             UUID buyerId,
             long totalAmount     // 차감 요청 금액 = product price + shipping fee, 양수
     ) {
         public DeductPointRequest {
+            if (idempotencyKey == null) throw new InvalidIdException("idempotencyKey");
             if (orderId == null) throw new InvalidIdException("orderId");
             if (buyerId == null) throw new InvalidIdException("buyerId");
             if (totalAmount <= 0) throw new InvalidMoneyException(totalAmount);
