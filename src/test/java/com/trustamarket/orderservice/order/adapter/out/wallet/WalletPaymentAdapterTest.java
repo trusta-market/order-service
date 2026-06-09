@@ -34,7 +34,7 @@ class WalletPaymentAdapterTest {
         when(walletFeignClient.usePoint(any()))
                 .thenReturn(ResponseEntity.ok(CommonResponse.of(200, walletResp)));
 
-        DeductPointResponse result = adapter.deduct(new DeductPointRequest(orderId, buyerId, 500_000L));
+        DeductPointResponse result = adapter.deduct(new DeductPointRequest(UUID.randomUUID(), orderId, buyerId, 500_000L));
 
         assertThat(result.balance()).isEqualTo(9_500_000L);
         assertThat(result.shortage()).isNull();
@@ -46,7 +46,7 @@ class WalletPaymentAdapterTest {
         when(walletFeignClient.usePoint(any()))
                 .thenReturn(null);
 
-        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), 100L)))
+        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), 100L)))
                 .isInstanceOf(WalletCommunicationException.class);
     }
 
@@ -56,7 +56,7 @@ class WalletPaymentAdapterTest {
         when(walletFeignClient.usePoint(any()))
                 .thenReturn(ResponseEntity.ok(null));
 
-        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), 100L)))
+        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), 100L)))
                 .isInstanceOf(WalletCommunicationException.class);
     }
 
@@ -66,7 +66,7 @@ class WalletPaymentAdapterTest {
         when(walletFeignClient.usePoint(any()))
                 .thenReturn(ResponseEntity.ok(CommonResponse.of(200, null)));
 
-        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), 100L)))
+        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), 100L)))
                 .isInstanceOf(WalletCommunicationException.class);
     }
 
@@ -77,7 +77,7 @@ class WalletPaymentAdapterTest {
         when(walletFeignClient.usePoint(any()))
                 .thenReturn(ResponseEntity.ok(CommonResponse.of(200, walletResp)));
 
-        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), 100L)))
+        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), 100L)))
                 .isInstanceOf(WalletCommunicationException.class);
     }
 
@@ -88,7 +88,7 @@ class WalletPaymentAdapterTest {
         when(walletFeignClient.usePoint(any()))
                 .thenReturn(ResponseEntity.ok(CommonResponse.of(200, walletResp)));
 
-        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), 100L)))
+        assertThatThrownBy(() -> adapter.deduct(new DeductPointRequest(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), 100L)))
                 .isInstanceOf(WalletCommunicationException.class);
     }
 }

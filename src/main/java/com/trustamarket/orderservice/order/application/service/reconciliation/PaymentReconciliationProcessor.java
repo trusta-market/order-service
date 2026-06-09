@@ -1,0 +1,164 @@
+package com.trustamarket.orderservice.order.application.service.reconciliation;
+
+import com.trustamarket.common.event.Events;
+import com.trustamarket.common.event.OutboxEvent;
+import com.trustamarket.orderservice.order.application.event.messaging.OrderEventTypes;
+import com.trustamarket.orderservice.order.application.event.messaging.OrderPaidMessage;
+import com.trustamarket.orderservice.order.application.port.out.OrderRepository;
+import com.trustamarket.orderservice.order.application.port.out.PaymentReconciliationRepository;
+import com.trustamarket.orderservice.order.application.port.out.ReconciliationAlertPort;
+import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort;
+import com.trustamarket.orderservice.order.application.port.out.WalletPaymentPort.UsageStatus;
+import com.trustamarket.orderservice.order.application.service.support.OrderHistoryRecorder;
+import com.trustamarket.orderservice.order.domain.model.Order;
+import com.trustamarket.orderservice.order.domain.model.OrderId;
+import com.trustamarket.orderservice.order.domain.model.OrderStatus;
+import com.trustamarket.orderservice.order.domain.model.PaymentReconciliation;
+import com.trustamarket.orderservice.order.domain.model.ReconciliationStatus;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.time.Instant;
+import java.util.UUID;
+
+// Scheduler 가 fetch 한 reconciliation row 1건을 처리.
+// Feign 호출은 tx 밖, DB UPDATE 만 짧은 tx 안에서 — HikariCP connection 점유 시간 최소화.
+//
+// 결과 분기:
+//   DEDUCTED      → order.markPaid() + outbox + reconciliation.markDone
+//   INSUFFICIENT  → order.rollbackPaymentRequest() + reconciliation.markDone
+//   NOT_FOUND     → order.rollbackPaymentRequest() + reconciliation.markDone
+//   getUsage 실패 → reconciliation.recordUnknown (백오프) — MAX 도달 시 GIVEN_UP + 알림
+//
+// 1-step saga 이므로 wallet 에 외부 변경 되돌리는 보상 트랜잭션 없음 — order 상태 복귀만.
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class PaymentReconciliationProcessor {
+
+    private static final String DOMAIN_TYPE = "ORDER";
+
+    private final WalletPaymentPort walletPaymentPort;
+    private final OrderRepository orderRepository;
+    private final OrderHistoryRecorder historyRecorder;
+    private final PaymentReconciliationRepository reconciliationRepository;
+    private final ReconciliationAlertPort alertPort;
+    private final TransactionTemplate txTemplate;
+
+    public void processOne(PaymentReconciliation reconciliation) {
+        UUID orderIdValue = reconciliation.getOrderId();
+        UsageStatus usage;
+        try {
+            // tx 밖에서 외부 Feign 호출.
+            usage = walletPaymentPort.getUsage(orderIdValue);
+        } catch (RuntimeException e) {
+            log.warn("[Reconciliation] getUsage 실패 — orderId={}, retryCount={}, err={}",
+                    orderIdValue, reconciliation.getRetryCount(), e.toString());
+            handleUnknown(reconciliation, e.getMessage());
+            return;
+        }
+
+        try {
+            applyResult(reconciliation, usage);
+        } catch (RuntimeException e) {
+            log.error("[Reconciliation] applyResult 실패 — orderId={}, result={}",
+                    orderIdValue, usage.result(), e);
+            handleUnknown(reconciliation, e.getMessage());
+        }
+    }
+
+    // wallet 결과 (DEDUCTED / INSUFFICIENT / NOT_FOUND) 별 분기.
+    // Aggregate 경계 (Order vs PaymentReconciliation) 분리 — 두 개의 짧은 트랜잭션으로.
+    //   tx1: Order 상태 전이 (markPaid 또는 rollbackPaymentRequest)
+    //   tx2: reconciliation.markDone
+    // tx2 실패 시 다음 폴링이 재시도 — Order 의 상태별 멱등 가드 (PAID/REQUESTED 면 skip) 가 중복 반영을 막는다.
+    private void applyResult(PaymentReconciliation reconciliation, UsageStatus usage) {
+        OrderId orderId = OrderId.of(reconciliation.getOrderId());
+
+        // ── tx1: Order Aggregate ──
+        txTemplate.execute(status -> {
+            switch (usage.result()) {
+                case DEDUCTED -> applyDeducted(orderId);
+                case INSUFFICIENT, NOT_FOUND -> applyRollback(orderId);
+            }
+            return null;
+        });
+
+        // ── tx2: PaymentReconciliation Aggregate ──
+        txTemplate.execute(status -> {
+            reconciliation.markDone(Instant.now());
+            reconciliationRepository.save(reconciliation);
+            return null;
+        });
+    }
+
+    private void applyDeducted(OrderId orderId) {
+        Order order = orderRepository.findByIdOrThrow(orderId);
+        // 이미 PAID 면 멱등 처리 — outbox 중복 발행 방지.
+        // (Aggregate 경계 분리 후 tx2 실패 시 다음 폴링에서 재진입할 때도 안전.)
+        if (order.getStatus() == OrderStatus.PAID) {
+            return;
+        }
+        OrderStatus pre = order.getStatus();
+        order.markPaid();
+        historyRecorder.record(order.getId(), pre, order.getStatus(), null);
+        orderRepository.save(order);
+
+        Events.trigger(OutboxEvent.of(
+                DOMAIN_TYPE, order.getId().value(),
+                OrderEventTypes.ORDER_PAID,
+                OrderPaidMessage.of(
+                        order.getId().value(),
+                        order.getProduct().id(),
+                        order.getSeller().id(),
+                        order.getBuyer().id(),
+                        order.getType().name())));
+    }
+
+    private void applyRollback(OrderId orderId) {
+        Order order = orderRepository.findByIdOrThrow(orderId);
+        // 이미 REQUESTED 또는 CANCELLED 면 멱등 처리 — 종결 상태, 추가 작업 불필요.
+        // (사용자가 reconciliation 도중 cancel 한 케이스 — wallet 차감 없는 INSUFFICIENT/NOT_FOUND 라 보상 불필요.)
+        if (order.getStatus() == OrderStatus.REQUESTED
+                || order.getStatus() == OrderStatus.CANCELLED) {
+            return;
+        }
+        OrderStatus pre = order.getStatus();
+        order.rollbackPaymentRequest();
+        historyRecorder.record(order.getId(), pre, order.getStatus(), null);
+        orderRepository.save(order);
+    }
+
+    // getUsage 자체가 또 실패한 경우 — 백오프 후 재시도. MAX 도달 시 GIVEN_UP + 알림.
+    private void handleUnknown(PaymentReconciliation reconciliation, String error) {
+        // applyResult 의 tx2 실패로 인해 in-memory status=DONE 인 채 진입할 수 있음
+        // (tx 롤백 후에도 markDone 의 in-memory mutation 은 남음).
+        // DB 는 PENDING 그대로이므로 다음 폴링이 fresh load 후 정리하게 skip.
+        if (reconciliation.getStatus() != ReconciliationStatus.PENDING) {
+            log.warn("[Reconciliation] handleUnknown skip — in-memory status={}, orderId={}",
+                    reconciliation.getStatus(), reconciliation.getOrderId());
+            return;
+        }
+        Instant now = Instant.now();
+        txTemplate.execute(status -> {
+            reconciliation.recordUnknown(error, now);
+            reconciliationRepository.save(reconciliation);
+            return null;
+        });
+        if (reconciliation.getStatus() == ReconciliationStatus.GIVEN_UP) {
+            try {
+                alertPort.notifyGivenUp(
+                        reconciliation.getOrderId(),
+                        reconciliation.getRetryCount(),
+                        reconciliation.getLastError()
+                );
+            } catch (RuntimeException e) {
+                // best-effort — 알림 실패가 reconciliation 자체 흐름을 막지 않게.
+                log.error("[Reconciliation] GIVEN_UP 알림 발송 실패 — orderId={}",
+                        reconciliation.getOrderId(), e);
+            }
+        }
+    }
+}

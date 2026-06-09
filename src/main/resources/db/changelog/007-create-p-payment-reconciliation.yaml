@@ -1,0 +1,100 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-create-p-payment-reconciliation
+      author: lhk
+      changes:
+        # saga 의 wallet Feign 호출이 timeout / 5xx 등 비정상 응답을 받았을 때
+        # 결과 확인을 즉시 못 한 케이스에 대해 DB queue 로 재시도를 관리.
+        # 1 order = 1 row (UNIQUE order_id) — 중복 등록 방지.
+        - createTable:
+            tableName: p_payment_reconciliation
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: order_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    unique: true
+                    uniqueConstraintName: uq_p_payment_reconciliation_order_id
+
+              # PENDING (재시도 대기) → DONE (완료, DEDUCTED 또는 NOT_DEDUCTED 처리됨) / GIVEN_UP (3회 초과)
+              - column:
+                  name: status
+                  type: varchar(20)
+                  defaultValue: PENDING
+                  constraints:
+                    nullable: false
+
+              # 0 시작. 1, 2 시도 후 3 도달 시 GIVEN_UP.
+              - column:
+                  name: retry_count
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+              # 다음 시도 시각. polling 이 NOW() 와 비교.
+              - column:
+                  name: next_retry_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+
+              # 마지막 시도 시각 (성공/실패 모두 기록).
+              - column:
+                  name: last_attempt_at
+                  type: timestamptz
+
+              # 마지막 시도의 실패 사유 (timeout / 5xx 등).
+              - column:
+                  name: last_error
+                  type: text
+
+              # Optimistic Lock — multi-pod 또는 동시 폴링 시 같은 row 의 마지막 commit 덮어쓰기 방지.
+              # JPA @Version 이 매 UPDATE 마다 WHERE version = :v 조건 추가 + 충돌 시 OptimisticLockException.
+              - column:
+                  name: version
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+              # audit (BaseUserEntity 일관성) — 시스템 처리라 by 는 system UUID 또는 null.
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: uuid
+              - column:
+                  name: updated_at
+                  type: timestamptz
+              - column:
+                  name: updated_by
+                  type: uuid
+              - column:
+                  name: deleted_at
+                  type: timestamptz
+              - column:
+                  name: deleted_by
+                  type: uuid
+
+        # polling 쿼리: WHERE status='PENDING' AND next_retry_at <= NOW()
+        # PENDING 외 상태 (DONE / GIVEN_UP) 는 polling 대상 아니므로 partial index 로 크기 축소.
+        # Liquibase createIndex 는 partial 지원 X → raw SQL 사용 (PostgreSQL).
+        - sql:
+            dbms: postgresql
+            sql: >-
+              CREATE INDEX idx_p_payment_reconciliation_pending_next_retry_at
+              ON p_payment_reconciliation (next_retry_at)
+              WHERE status = 'PENDING';
+            rollback: DROP INDEX IF EXISTS idx_p_payment_reconciliation_pending_next_retry_at;

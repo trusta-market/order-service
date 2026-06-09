@@ -1,0 +1,86 @@
+package com.trustamarket.orderservice.order.adapter.out.persistence.reconciliation;
+
+import com.trustamarket.orderservice.order.application.port.out.PaymentReconciliationRepository;
+import com.trustamarket.orderservice.order.domain.model.PaymentReconciliation;
+import com.trustamarket.orderservice.order.domain.model.ReconciliationStatus;
+import lombok.RequiredArgsConstructor;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.core.NestedExceptionUtils;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Repository;
+
+import java.sql.SQLException;
+import java.time.Instant;
+import java.util.List;
+
+// PaymentReconciliationRepository port 의 JPA 구현 — application 진입점.
+@Repository
+@RequiredArgsConstructor
+public class PaymentReconciliationJpaRepositoryAdapter implements PaymentReconciliationRepository {
+
+    private final PaymentReconciliationJpaRepository jpaRepository;
+    private final PaymentReconciliationMapper mapper;
+
+    private static final String ORDER_ID_UNIQUE_CONSTRAINT = "uq_p_payment_reconciliation_order_id";
+
+    // saga catch 안에서 호출. existsByOrderId 로 중복 INSERT 회피 + UNIQUE(order_id) 가 동시성 안전망.
+    // TOCTOU race (exists check 통과 후 다른 트랜잭션이 먼저 INSERT) 시 DataIntegrityViolationException 발생 →
+    // 멱등 skip (어차피 같은 orderId 의 PENDING row 가 이미 존재).
+    @Override
+    public void enqueueIfAbsent(PaymentReconciliation reconciliation) {
+        if (jpaRepository.existsByOrderId(reconciliation.getOrderId())) {
+            return;
+        }
+        try {
+            jpaRepository.save(mapper.toEntity(reconciliation));
+        } catch (DataIntegrityViolationException e) {
+            // UNIQUE(order_id) 가 잡은 동시 실패 race 만 멱등 skip.
+            // 그 외 제약 위반은 실제 장애로 보고 호출자에게 전파.
+            if (!isOrderIdUniqueViolation(e)) {
+                throw e;
+            }
+        }
+    }
+
+    // unique violation 식별 — message substring 보다 구조화된 cause 검사가 우선.
+    //   1) Hibernate 의 ConstraintViolationException.constraintName — ORM 이 파싱해서 채워줌
+    //   2) JDBC SQLException.SQLState — "23505" 는 PostgreSQL 표준 unique_violation 코드.
+    //      (DB 가 직접 알려주는 값이라 메시지 파싱보다 드라이버/버전에 안전)
+    //      SQLState 만으로는 어떤 unique 인지 모르므로 message 로 한 번 더 확인.
+    //   3) fallback — message substring (1·2 가 모두 실패할 경우 대비)
+    private boolean isOrderIdUniqueViolation(DataIntegrityViolationException e) {
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            if (cause instanceof ConstraintViolationException cve) {
+                return ORDER_ID_UNIQUE_CONSTRAINT.equals(cve.getConstraintName());
+            }
+            if (cause instanceof SQLException sql && "23505".equals(sql.getSQLState())) {
+                String msg = sql.getMessage();
+                return msg != null && msg.contains(ORDER_ID_UNIQUE_CONSTRAINT);
+            }
+        }
+        Throwable root = NestedExceptionUtils.getMostSpecificCause(e);
+        String message = root != null ? root.getMessage() : null;
+        return message != null && message.contains(ORDER_ID_UNIQUE_CONSTRAINT);
+    }
+
+    // 결정적 정렬 — nextRetryAt 오름차순으로 가장 오래 대기한 row 부터 처리.
+    // 배치 한도 (50) 초과 백로그 시 특정 row 가 계속 뒤로 밀려 starvation 되는 것 방지.
+    @Override
+    public List<PaymentReconciliation> findRetriable(Instant now, int limit) {
+        return jpaRepository.findByStatusAndNextRetryAtLessThanEqual(
+                ReconciliationStatus.PENDING, now,
+                PageRequest.of(0, limit, Sort.by("nextRetryAt").ascending())
+        ).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public PaymentReconciliation save(PaymentReconciliation reconciliation) {
+        PaymentReconciliationJpaEntity entity = mapper.toEntity(reconciliation);
+        PaymentReconciliationJpaEntity saved = jpaRepository.save(entity);
+        return mapper.toDomain(saved);
+    }
+}
